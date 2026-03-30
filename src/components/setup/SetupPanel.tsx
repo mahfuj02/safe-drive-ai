@@ -1,5 +1,5 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { LocationStatus } from '../../types/driving';
+import { LocationStatus, PermissionState } from '../../types/driving';
 import { colors, spacing } from '../../theme/tokens';
 import { PermissionStatusCard } from './PermissionStatusCard';
 import { SpeedLimitControl } from './SpeedLimitControl';
@@ -8,28 +8,38 @@ import { ThresholdSelector } from './ThresholdSelector';
 
 type SetupPanelProps = {
   locationStatus: LocationStatus;
+  permissionState: PermissionState;
+  isStarting: boolean;
   alertThresholdKmh: number;
   speedLimitKmh: number;
   onSelectThreshold: (value: number) => void;
   onChangeSpeedLimit: (value: number) => void;
   onStartDrive: () => void;
   onStartDemoDrive: () => void;
+  onOpenSettings: () => void;
 };
 
 export function SetupPanel({
   locationStatus,
+  permissionState,
+  isStarting,
   alertThresholdKmh,
   speedLimitKmh,
   onSelectThreshold,
   onChangeSpeedLimit,
   onStartDrive,
   onStartDemoDrive,
+  onOpenSettings,
 }: SetupPanelProps) {
   return (
     <>
       <Text style={styles.title}>SafeDrive AI</Text>
 
-      <PermissionStatusCard locationStatus={locationStatus} />
+      <PermissionStatusCard
+        locationStatus={locationStatus}
+        permissionState={permissionState}
+        onOpenSettings={onOpenSettings}
+      />
 
       <ThresholdSelector
         selectedThresholdKmh={alertThresholdKmh}
@@ -41,7 +51,7 @@ export function SetupPanel({
         onChangeSpeedLimit={onChangeSpeedLimit}
       />
 
-      <StartDriveButton onPress={onStartDrive} />
+      <StartDriveButton onPress={onStartDrive} isLoading={isStarting} />
 
       {__DEV__ && (
         <View style={styles.demoRow}>

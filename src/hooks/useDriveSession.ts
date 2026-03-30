@@ -1,5 +1,6 @@
 import * as Location from 'expo-location';
 import * as Speech from 'expo-speech';
+import { Linking } from 'react-native';
 import { useEffect, useRef, useState } from 'react';
 import {
   ALERT_COOLDOWN_MS,
@@ -7,7 +8,7 @@ import {
   DEFAULT_ALERT_THRESHOLD_KMH,
   DEFAULT_SPEED_LIMIT_KMH,
 } from '../constants/driving';
-import { DriveState, LocationStatus, TripSummary } from '../types/driving';
+import { DriveState, LocationStatus, PermissionState, TripSummary } from '../types/driving';
 
 function getDriveState(overByKmh: number, alertThresholdKmh: number): DriveState {
   if (overByKmh >= alertThresholdKmh) {
@@ -25,9 +26,11 @@ export function useDriveSession() {
   const [speedLimitKmh, setSpeedLimitKmh] = useState(DEFAULT_SPEED_LIMIT_KMH);
   const [currentSpeedKmh, setCurrentSpeedKmh] = useState(0);
   const [isTracking, setIsTracking] = useState(false);
+  const [isStarting, setIsStarting] = useState(false);
   const [isDemoMode, setIsDemoMode] = useState(false);
   const [statusText, setStatusText] = useState('Tap Start Drive to begin.');
   const [locationStatus, setLocationStatus] = useState<LocationStatus>('inactive');
+  const [permissionState, setPermissionState] = useState<PermissionState>('unknown');
   const [alertThresholdKmh, setAlertThresholdKmh] = useState(DEFAULT_ALERT_THRESHOLD_KMH);
   const [latestTripSummary, setLatestTripSummary] = useState<TripSummary | null>(null);
 
@@ -153,15 +156,19 @@ export function useDriveSession() {
   };
 
   const startTracking = async () => {
+    setIsStarting(true);
+
     try {
       const { status } = await Location.requestForegroundPermissionsAsync();
 
       if (status !== 'granted') {
+        setPermissionState('denied');
         setLocationStatus('inactive');
         setStatusText('Location permission denied. Enable it in settings.');
         return;
       }
 
+      setPermissionState('granted');
       setStatusText('Tracking in progress...');
       setIsDemoMode(false);
       setLocationStatus('active');
@@ -192,6 +199,8 @@ export function useDriveSession() {
       setStatusText('Unable to start tracking. Please retry.');
       setIsTracking(false);
       setLocationStatus('inactive');
+    } finally {
+      setIsStarting(false);
     }
   };
 
@@ -224,6 +233,10 @@ export function useDriveSession() {
     setLatestTripSummary(null);
   };
 
+  const openAppSettings = async () => {
+    await Linking.openSettings();
+  };
+
   useEffect(() => {
     return () => {
       if (locationSubRef.current) {
@@ -237,10 +250,12 @@ export function useDriveSession() {
     setSpeedLimitKmh,
     currentSpeedKmh,
     isTracking,
+    isStarting,
     isDemoMode,
     latestTripSummary,
     statusText,
     locationStatus,
+    permissionState,
     alertThresholdKmh,
     setAlertThresholdKmh,
     overByKmh,
@@ -249,6 +264,7 @@ export function useDriveSession() {
     startDemoMode,
     setDemoSpeedKmh,
     closeTripSummary,
+    openAppSettings,
     stopTracking,
   };
 }

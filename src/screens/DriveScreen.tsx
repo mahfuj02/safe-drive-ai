@@ -13,10 +13,12 @@ export function DriveScreen() {
     setSpeedLimitKmh,
     currentSpeedKmh,
     isTracking,
+    isStarting,
     isDemoMode,
     latestTripSummary,
     statusText,
     locationStatus,
+    permissionState,
     alertThresholdKmh,
     setAlertThresholdKmh,
     overByKmh,
@@ -25,6 +27,7 @@ export function DriveScreen() {
     startDemoMode,
     setDemoSpeedKmh,
     closeTripSummary,
+    openAppSettings,
     stopTracking,
   } = useDriveSession();
 
@@ -45,12 +48,15 @@ export function DriveScreen() {
         {!isTracking ? (
           <SetupPanel
             locationStatus={locationStatus}
+            permissionState={permissionState}
+            isStarting={isStarting}
             alertThresholdKmh={alertThresholdKmh}
             speedLimitKmh={speedLimitKmh}
             onSelectThreshold={setAlertThresholdKmh}
             onChangeSpeedLimit={setSpeedLimitKmh}
             onStartDrive={startTracking}
             onStartDemoDrive={startDemoMode}
+            onOpenSettings={openAppSettings}
           />
         ) : (
           <ActiveDrivePanel

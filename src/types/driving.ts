@@ -1,5 +1,7 @@
 export type LocationStatus = 'active' | 'inactive';
 
+export type PermissionState = 'unknown' | 'granted' | 'denied';
+
 export type DriveState = 'safe' | 'warning' | 'alert';
 
 export type TripSummary = {

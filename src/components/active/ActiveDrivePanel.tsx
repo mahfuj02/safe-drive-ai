@@ -28,7 +28,12 @@ export function ActiveDrivePanel({
 }: ActiveDrivePanelProps) {
   return (
     <>
-      <Text style={styles.driveRoadText}>Driving on: Winnipeg Route</Text>
+      <View style={styles.headerRow}>
+        <Text style={styles.driveRoadText}>Driving on: Winnipeg Route</Text>
+        <View style={[styles.modeBadge, isDemoMode ? styles.demoBadge : styles.liveBadge]}>
+          <Text style={styles.modeBadgeText}>{isDemoMode ? 'DEMO' : 'LIVE'}</Text>
+        </View>
+      </View>
 
       <DriveStateBanner driveState={driveState} />
 
@@ -56,12 +61,34 @@ export function ActiveDrivePanel({
 }
 
 const styles = StyleSheet.create({
+  headerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: spacing.md,
+  },
   driveRoadText: {
     color: colors.text.muted,
     marginTop: 4,
-    marginBottom: spacing.md,
     fontSize: 16,
     fontWeight: '700',
+  },
+  modeBadge: {
+    borderRadius: radii.md,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+  },
+  liveBadge: {
+    backgroundColor: colors.state.safeBackground,
+  },
+  demoBadge: {
+    backgroundColor: colors.state.warningBackground,
+  },
+  modeBadgeText: {
+    color: colors.text.primary,
+    fontSize: 11,
+    fontWeight: '900',
+    letterSpacing: 0.6,
   },
   overText: {
     color: colors.text.primary,

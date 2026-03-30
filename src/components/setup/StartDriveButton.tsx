@@ -3,12 +3,13 @@ import { colors, radii, spacing } from '../../theme/tokens';
 
 type StartDriveButtonProps = {
   onPress: () => void;
+  isLoading?: boolean;
 };
 
-export function StartDriveButton({ onPress }: StartDriveButtonProps) {
+export function StartDriveButton({ onPress, isLoading = false }: StartDriveButtonProps) {
   return (
-    <Pressable onPress={onPress} style={styles.button}>
-      <Text style={styles.text}>START DRIVE</Text>
+    <Pressable onPress={onPress} disabled={isLoading} style={[styles.button, isLoading && styles.buttonDisabled]}>
+      <Text style={styles.text}>{isLoading ? 'STARTING...' : 'START DRIVE'}</Text>
     </Pressable>
   );
 }
@@ -25,6 +26,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: 'rgba(29, 197, 98, 0.14)',
+  },
+  buttonDisabled: {
+    opacity: 0.6,
   },
   text: {
     color: colors.button.start,
