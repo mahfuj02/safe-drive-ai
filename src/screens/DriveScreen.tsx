@@ -4,6 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { ActiveDrivePanel } from '../components/active/ActiveDrivePanel';
 import { SetupPanel } from '../components/setup/SetupPanel';
 import { useDriveSession } from '../hooks/useDriveSession';
+import { colors, spacing } from '../theme/tokens';
 
 export function DriveScreen() {
   const {
@@ -59,24 +60,24 @@ export function DriveScreen() {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#08111E',
+    backgroundColor: colors.screen.safeBackground,
   },
   container: {
     flex: 1,
-    paddingHorizontal: 20,
-    paddingTop: 18,
-    paddingBottom: 20,
-    backgroundColor: '#08111E',
+    paddingHorizontal: spacing.xxl,
+    paddingTop: spacing.xl,
+    paddingBottom: spacing.xxl,
+    backgroundColor: colors.screen.safeBackground,
   },
   containerWarning: {
-    backgroundColor: '#171510',
+    backgroundColor: colors.screen.warningBackground,
   },
   containerAlert: {
-    backgroundColor: '#4F0808',
+    backgroundColor: colors.screen.alertBackground,
   },
   statusText: {
-    marginTop: 10,
-    color: '#A9BAD1',
+    marginTop: spacing.md,
+    color: colors.text.secondary,
     fontSize: 12,
     textAlign: 'center',
   },

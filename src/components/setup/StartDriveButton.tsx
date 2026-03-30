@@ -1,4 +1,5 @@
 import { Pressable, StyleSheet, Text } from 'react-native';
+import { colors, radii, spacing } from '../../theme/tokens';
 
 type StartDriveButtonProps = {
   onPress: () => void;
@@ -18,15 +19,15 @@ const styles = StyleSheet.create({
     alignSelf: 'center',
     width: 190,
     height: 190,
-    borderRadius: 95,
+    borderRadius: radii.round,
     borderWidth: 3,
-    borderColor: '#4CEF85',
+    borderColor: colors.button.start,
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: 'rgba(29, 197, 98, 0.14)',
   },
   text: {
-    color: '#4CEF85',
+    color: colors.button.start,
     fontWeight: '900',
     fontSize: 28,
     textAlign: 'center',

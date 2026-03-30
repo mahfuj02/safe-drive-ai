@@ -1,4 +1,5 @@
 import { StyleSheet, Text, View } from 'react-native';
+import { colors, radii, spacing } from '../../theme/tokens';
 import { DriveState } from '../../types/driving';
 
 type SpeedGaugeProps = {
@@ -40,46 +41,46 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    backgroundColor: '#13263A',
-    borderRadius: 14,
-    padding: 18,
+    backgroundColor: colors.gauge.panel,
+    borderRadius: radii.xl,
+    padding: spacing.xl,
   },
   speedValue: {
     fontSize: 90,
     fontWeight: '900',
-    color: '#55E278',
+    color: colors.gauge.speedSafe,
     lineHeight: 94,
   },
   warningText: {
-    color: '#FFBF58',
+    color: colors.gauge.speedWarning,
   },
   alertText: {
-    color: '#FF4D4D',
+    color: colors.gauge.speedAlert,
   },
   speedUnit: {
     marginTop: -4,
-    color: '#C8D8EF',
+    color: colors.gauge.unit,
     fontSize: 36,
     fontWeight: '700',
   },
   limitBadge: {
     width: 104,
     height: 104,
-    borderRadius: 14,
-    backgroundColor: '#F2F4F7',
+    borderRadius: radii.xl,
+    backgroundColor: colors.gauge.limitBadgeBackground,
     borderWidth: 3,
-    borderColor: '#B8C2CF',
+    borderColor: colors.gauge.limitBadgeBorder,
     alignItems: 'center',
     justifyContent: 'center',
   },
   limitBadgeValue: {
-    color: '#1D222B',
+    color: colors.gauge.limitBadgeValue,
     fontWeight: '900',
     fontSize: 44,
     lineHeight: 48,
   },
   limitBadgeText: {
-    color: '#2C3340',
+    color: colors.gauge.limitBadgeLabel,
     fontSize: 18,
     fontWeight: '700',
   },

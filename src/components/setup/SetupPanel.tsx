@@ -1,5 +1,6 @@
 import { StyleSheet, Text } from 'react-native';
 import { LocationStatus } from '../../types/driving';
+import { colors, spacing } from '../../theme/tokens';
 import { PermissionStatusCard } from './PermissionStatusCard';
 import { SpeedLimitControl } from './SpeedLimitControl';
 import { StartDriveButton } from './StartDriveButton';
@@ -47,8 +48,8 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 42,
     fontWeight: '900',
-    marginTop: 18,
-    color: '#F5F8FF',
+    marginTop: spacing.xl,
+    color: colors.text.primary,
     letterSpacing: 0.2,
   },
 });

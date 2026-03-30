@@ -1,6 +1,7 @@
 import { StyleSheet, Text } from 'react-native';
 import { SectionCard } from '../common/SectionCard';
 import { LocationStatus } from '../../types/driving';
+import { colors, spacing } from '../../theme/tokens';
 
 type PermissionStatusCardProps = {
   locationStatus: LocationStatus;
@@ -18,8 +19,8 @@ export function PermissionStatusCard({ locationStatus }: PermissionStatusCardPro
 
 const styles = StyleSheet.create({
   permissionText: {
-    color: '#B9CAE2',
+    color: colors.text.muted,
     fontSize: 14,
-    marginBottom: 4,
+    marginBottom: spacing.xs,
   },
 });

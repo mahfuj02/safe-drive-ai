@@ -3,6 +3,7 @@ import {
   MAX_SPEED_LIMIT_KMH,
   MIN_SPEED_LIMIT_KMH,
 } from '../../constants/driving';
+import { colors, radii, spacing } from '../../theme/tokens';
 import { clamp } from '../../utils/math';
 import { SectionCard } from '../common/SectionCard';
 
@@ -49,18 +50,18 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   button: {
-    backgroundColor: '#0C182A',
-    borderRadius: 10,
+    backgroundColor: colors.button.dark,
+    borderRadius: radii.md,
     paddingHorizontal: 12,
-    paddingVertical: 8,
+    paddingVertical: spacing.sm,
   },
   buttonText: {
-    color: '#D4E3F7',
+    color: colors.button.darkText,
     fontWeight: '800',
     fontSize: 16,
   },
   limitValue: {
-    color: '#FFFFFF',
+    color: colors.text.primary,
     fontWeight: '900',
     fontSize: 23,
   },

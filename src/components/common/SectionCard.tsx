@@ -1,5 +1,6 @@
 import { ReactNode } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
+import { colors, radii, spacing } from '../../theme/tokens';
 
 type SectionCardProps = {
   title: string;
@@ -17,15 +18,15 @@ export function SectionCard({ title, children }: SectionCardProps) {
 
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: '#13253A',
-    borderRadius: 14,
-    padding: 14,
-    marginTop: 14,
+    backgroundColor: colors.card.background,
+    borderRadius: radii.xl,
+    padding: spacing.lg,
+    marginTop: spacing.lg,
   },
   title: {
-    color: '#E8EEFF',
+    color: colors.card.title,
     fontSize: 17,
     fontWeight: '800',
-    marginBottom: 8,
+    marginBottom: spacing.sm,
   },
 });

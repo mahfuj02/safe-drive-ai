@@ -1,5 +1,6 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { WARNING_THRESHOLDS } from '../../constants/driving';
+import { colors, radii, spacing } from '../../theme/tokens';
 import { SectionCard } from '../common/SectionCard';
 
 type ThresholdSelectorProps = {
@@ -41,19 +42,19 @@ export function ThresholdSelector({
 const styles = StyleSheet.create({
   row: {
     flexDirection: 'row',
-    gap: 8,
+    gap: spacing.sm,
   },
   button: {
     flex: 1,
     borderWidth: 1,
     borderColor: '#395070',
-    borderRadius: 8,
-    paddingVertical: 8,
+    borderRadius: radii.sm,
+    paddingVertical: spacing.sm,
     alignItems: 'center',
   },
   buttonActive: {
-    backgroundColor: '#38D66D',
-    borderColor: '#38D66D',
+    backgroundColor: colors.button.start,
+    borderColor: colors.button.start,
   },
   buttonText: {
     color: '#C0D0E7',

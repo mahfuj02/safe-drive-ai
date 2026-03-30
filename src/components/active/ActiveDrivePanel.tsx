@@ -1,4 +1,5 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { colors, radii, spacing } from '../../theme/tokens';
 import { DriveState } from '../../types/driving';
 import { DriveStateBanner } from './DriveStateBanner';
 import { SpeedGauge } from './SpeedGauge';
@@ -41,30 +42,30 @@ export function ActiveDrivePanel({
 
 const styles = StyleSheet.create({
   driveRoadText: {
-    color: '#C6D3E8',
+    color: colors.text.muted,
     marginTop: 4,
-    marginBottom: 10,
+    marginBottom: spacing.md,
     fontSize: 16,
     fontWeight: '700',
   },
   overText: {
-    color: '#E4EEFB',
-    marginTop: 14,
-    marginBottom: 20,
+    color: colors.text.primary,
+    marginTop: spacing.lg,
+    marginBottom: spacing.xxl,
     fontSize: 22,
     fontWeight: '800',
   },
   stopDriveButton: {
     marginTop: 'auto',
-    borderRadius: 12,
+    borderRadius: radii.lg,
     paddingVertical: 16,
     alignItems: 'center',
-    backgroundColor: '#A31616',
+    backgroundColor: colors.button.stopBackground,
   },
   stopDriveText: {
     fontSize: 43,
     fontWeight: '900',
-    color: '#FFEEEE',
+    color: colors.button.stopText,
     letterSpacing: 1,
   },
 });

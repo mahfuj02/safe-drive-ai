@@ -1,4 +1,5 @@
 import { StyleSheet, Text } from 'react-native';
+import { colors, radii, spacing } from '../../theme/tokens';
 import { DriveState } from '../../types/driving';
 
 type DriveStateBannerProps = {
@@ -19,30 +20,30 @@ export function DriveStateBanner({ driveState }: DriveStateBannerProps) {
 
 const styles = StyleSheet.create({
   safe: {
-    color: '#79F79B',
-    backgroundColor: 'rgba(22, 110, 44, 0.45)',
-    borderRadius: 8,
-    paddingVertical: 8,
+    color: colors.state.safeText,
+    backgroundColor: colors.state.safeBackground,
+    borderRadius: radii.sm,
+    paddingVertical: spacing.sm,
     textAlign: 'center',
     fontWeight: '800',
-    marginBottom: 14,
+    marginBottom: spacing.lg,
   },
   warning: {
-    color: '#FFD37A',
-    backgroundColor: 'rgba(124, 84, 13, 0.48)',
-    borderRadius: 8,
-    paddingVertical: 8,
+    color: colors.state.warningText,
+    backgroundColor: colors.state.warningBackground,
+    borderRadius: radii.sm,
+    paddingVertical: spacing.sm,
     textAlign: 'center',
     fontWeight: '900',
-    marginBottom: 14,
+    marginBottom: spacing.lg,
   },
   alert: {
-    color: '#FFE5E5',
-    backgroundColor: 'rgba(161, 16, 16, 0.9)',
-    borderRadius: 8,
-    paddingVertical: 8,
+    color: colors.state.alertText,
+    backgroundColor: colors.state.alertBackground,
+    borderRadius: radii.sm,
+    paddingVertical: spacing.sm,
     textAlign: 'center',
     fontWeight: '900',
-    marginBottom: 14,
+    marginBottom: spacing.lg,
   },
 });
