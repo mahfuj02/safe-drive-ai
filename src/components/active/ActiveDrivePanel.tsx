@@ -1,6 +1,7 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { colors, radii, spacing } from '../../theme/tokens';
 import { DriveState } from '../../types/driving';
+import { DebugStateControls } from './DebugStateControls';
 import { DriveStateBanner } from './DriveStateBanner';
 import { SpeedGauge } from './SpeedGauge';
 
@@ -9,6 +10,9 @@ type ActiveDrivePanelProps = {
   currentSpeedKmh: number;
   speedLimitKmh: number;
   overByKmh: number;
+  alertThresholdKmh: number;
+  isDemoMode: boolean;
+  onSetDemoSpeed: (speedKmh: number) => void;
   onStopDrive: () => void;
 };
 
@@ -17,6 +21,9 @@ export function ActiveDrivePanel({
   currentSpeedKmh,
   speedLimitKmh,
   overByKmh,
+  alertThresholdKmh,
+  isDemoMode,
+  onSetDemoSpeed,
   onStopDrive,
 }: ActiveDrivePanelProps) {
   return (
@@ -32,6 +39,14 @@ export function ActiveDrivePanel({
       />
 
       <Text style={styles.overText}>Over: {Math.round(overByKmh)} km/h</Text>
+
+      {__DEV__ && isDemoMode && (
+        <DebugStateControls
+          onSetSafe={() => onSetDemoSpeed(speedLimitKmh - 2)}
+          onSetWarning={() => onSetDemoSpeed(speedLimitKmh + Math.max(1, alertThresholdKmh - 1))}
+          onSetAlert={() => onSetDemoSpeed(speedLimitKmh + alertThresholdKmh + 4)}
+        />
+      )}
 
       <Pressable onPress={onStopDrive} style={styles.stopDriveButton}>
         <Text style={styles.stopDriveText}>STOP DRIVE</Text>

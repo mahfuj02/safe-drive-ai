@@ -1,4 +1,4 @@
-import { StyleSheet, Text } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { LocationStatus } from '../../types/driving';
 import { colors, spacing } from '../../theme/tokens';
 import { PermissionStatusCard } from './PermissionStatusCard';
@@ -13,6 +13,7 @@ type SetupPanelProps = {
   onSelectThreshold: (value: number) => void;
   onChangeSpeedLimit: (value: number) => void;
   onStartDrive: () => void;
+  onStartDemoDrive: () => void;
 };
 
 export function SetupPanel({
@@ -22,6 +23,7 @@ export function SetupPanel({
   onSelectThreshold,
   onChangeSpeedLimit,
   onStartDrive,
+  onStartDemoDrive,
 }: SetupPanelProps) {
   return (
     <>
@@ -40,6 +42,14 @@ export function SetupPanel({
       />
 
       <StartDriveButton onPress={onStartDrive} />
+
+      {__DEV__ && (
+        <View style={styles.demoRow}>
+          <Pressable onPress={onStartDemoDrive} style={styles.demoButton}>
+            <Text style={styles.demoButtonText}>START DEMO MODE</Text>
+          </Pressable>
+        </View>
+      )}
     </>
   );
 }
@@ -51,5 +61,19 @@ const styles = StyleSheet.create({
     marginTop: spacing.xl,
     color: colors.text.primary,
     letterSpacing: 0.2,
+  },
+  demoRow: {
+    marginTop: spacing.lg,
+  },
+  demoButton: {
+    backgroundColor: colors.button.dark,
+    borderRadius: 10,
+    paddingVertical: spacing.md,
+    alignItems: 'center',
+  },
+  demoButtonText: {
+    color: colors.button.darkText,
+    fontWeight: '800',
+    fontSize: 13,
   },
 });

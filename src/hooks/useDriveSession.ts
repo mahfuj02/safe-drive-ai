@@ -25,6 +25,7 @@ export function useDriveSession() {
   const [speedLimitKmh, setSpeedLimitKmh] = useState(DEFAULT_SPEED_LIMIT_KMH);
   const [currentSpeedKmh, setCurrentSpeedKmh] = useState(0);
   const [isTracking, setIsTracking] = useState(false);
+  const [isDemoMode, setIsDemoMode] = useState(false);
   const [statusText, setStatusText] = useState('Tap Start Drive to begin.');
   const [locationStatus, setLocationStatus] = useState<LocationStatus>('inactive');
   const [alertThresholdKmh, setAlertThresholdKmh] = useState(DEFAULT_ALERT_THRESHOLD_KMH);
@@ -53,6 +54,7 @@ export function useDriveSession() {
     }
 
     setIsTracking(false);
+    setIsDemoMode(false);
     setCurrentSpeedKmh(0);
     overLimitStartRef.current = null;
     setLocationStatus('inactive');
@@ -101,6 +103,7 @@ export function useDriveSession() {
       }
 
       setStatusText('Tracking in progress...');
+      setIsDemoMode(false);
       setLocationStatus('active');
       setIsTracking(true);
       overLimitStartRef.current = null;
@@ -129,6 +132,26 @@ export function useDriveSession() {
     }
   };
 
+  const startDemoMode = () => {
+    if (locationSubRef.current) {
+      locationSubRef.current.remove();
+      locationSubRef.current = null;
+    }
+
+    setIsTracking(true);
+    setIsDemoMode(true);
+    setLocationStatus('inactive');
+    setCurrentSpeedKmh(speedLimitRef.current - 2);
+    setStatusText('Demo mode active. Use controls to test states.');
+    overLimitStartRef.current = null;
+    lastAlertAtRef.current = 0;
+  };
+
+  const setDemoSpeedKmh = (speedKmh: number) => {
+    setCurrentSpeedKmh(speedKmh);
+    setStatusText(`Demo speed set to ${Math.round(speedKmh)} km/h.`);
+  };
+
   useEffect(() => {
     return () => {
       if (locationSubRef.current) {
@@ -142,6 +165,7 @@ export function useDriveSession() {
     setSpeedLimitKmh,
     currentSpeedKmh,
     isTracking,
+    isDemoMode,
     statusText,
     locationStatus,
     alertThresholdKmh,
@@ -149,6 +173,8 @@ export function useDriveSession() {
     overByKmh,
     driveState,
     startTracking,
+    startDemoMode,
+    setDemoSpeedKmh,
     stopTracking,
   };
 }
