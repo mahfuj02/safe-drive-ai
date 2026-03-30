@@ -2,9 +2,9 @@ import { StatusBar } from 'expo-status-bar';
 import * as Location from 'expo-location';
 import * as Speech from 'expo-speech';
 import { useEffect, useRef, useState } from 'react';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import {
   Pressable,
-  SafeAreaView,
   StyleSheet,
   Text,
   View,
