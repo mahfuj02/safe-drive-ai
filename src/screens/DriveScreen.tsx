@@ -3,6 +3,7 @@ import { StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ActiveDrivePanel } from '../components/active/ActiveDrivePanel';
 import { SetupPanel } from '../components/setup/SetupPanel';
+import { TripSummaryModal } from '../components/summary/TripSummaryModal';
 import { useDriveSession } from '../hooks/useDriveSession';
 import { colors, spacing } from '../theme/tokens';
 
@@ -13,6 +14,7 @@ export function DriveScreen() {
     currentSpeedKmh,
     isTracking,
     isDemoMode,
+    latestTripSummary,
     statusText,
     locationStatus,
     alertThresholdKmh,
@@ -22,8 +24,14 @@ export function DriveScreen() {
     startTracking,
     startDemoMode,
     setDemoSpeedKmh,
+    closeTripSummary,
     stopTracking,
   } = useDriveSession();
+
+  const handleStartNewDrive = () => {
+    closeTripSummary();
+    void startTracking();
+  };
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -60,6 +68,12 @@ export function DriveScreen() {
         <Text style={styles.statusText}>{statusText}</Text>
         <StatusBar style="light" />
       </View>
+
+      <TripSummaryModal
+        summary={latestTripSummary}
+        onClose={closeTripSummary}
+        onStartNewDrive={handleStartNewDrive}
+      />
     </SafeAreaView>
   );
 }

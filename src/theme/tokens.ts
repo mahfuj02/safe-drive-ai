@@ -39,6 +39,14 @@ export const colors = {
     limitBadgeValue: '#1D222B',
     limitBadgeLabel: '#2C3340',
   },
+  modal: {
+    overlay: 'rgba(0, 0, 0, 0.65)',
+    sheetBackground: '#11223A',
+    value: '#F5F8FF',
+    label: '#B9CAE2',
+    buttonBackground: '#0C182A',
+    buttonText: '#D4E3F7',
+  },
 };
 
 export const spacing = {
