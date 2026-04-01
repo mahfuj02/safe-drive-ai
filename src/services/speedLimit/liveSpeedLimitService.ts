@@ -12,7 +12,10 @@ type OverpassWay = {
   type: 'way';
   tags?: {
     maxspeed?: string;
+    'maxspeed:forward'?: string;
+    'maxspeed:backward'?: string;
     name?: string;
+    highway?: string;
   };
   geometry?: OverpassNode[];
 };
@@ -24,6 +27,7 @@ type OverpassResponse = {
 export type LiveSpeedLimitResult = {
   speedLimitKmh: number | null;
   roadName?: string;
+  roadClass?: string;
 };
 
 const OVERPASS_ENDPOINT = 'https://overpass-api.de/api/interpreter';
@@ -70,6 +74,83 @@ function parseMaxSpeedToKmh(raw: string | undefined): number | null {
   return Math.round(numeric);
 }
 
+function defaultUrbanLimitForRoadClass(roadClass: string | undefined): number | null {
+  if (!roadClass) {
+    return null;
+  }
+
+  const defaults: Record<string, number> = {
+    motorway: 100,
+    trunk: 80,
+    primary: 60,
+    secondary: 60,
+    tertiary: 50,
+    unclassified: 50,
+    residential: 50,
+    service: 30,
+    living_street: 20,
+  };
+
+  return defaults[roadClass] ?? null;
+}
+
+function distancePointToSegmentMeters(
+  location: Coordinates,
+  a: Coordinates,
+  b: Coordinates,
+): number {
+  const metersPerDegLat = 111320;
+  const latRad = toRadians(location.latitude);
+  const metersPerDegLon = 111320 * Math.cos(latRad);
+
+  const pointX = (location.longitude - a.longitude) * metersPerDegLon;
+  const pointY = (location.latitude - a.latitude) * metersPerDegLat;
+  const segmentX = (b.longitude - a.longitude) * metersPerDegLon;
+  const segmentY = (b.latitude - a.latitude) * metersPerDegLat;
+  const segmentLenSq = segmentX * segmentX + segmentY * segmentY;
+
+  if (segmentLenSq === 0) {
+    return Math.hypot(pointX, pointY);
+  }
+
+  const t = Math.max(0, Math.min(1, (pointX * segmentX + pointY * segmentY) / segmentLenSq));
+  const projectionX = t * segmentX;
+  const projectionY = t * segmentY;
+
+  return Math.hypot(pointX - projectionX, pointY - projectionY);
+}
+
+function distanceToWayMeters(way: OverpassWay, location: Coordinates): number {
+  if (!way.geometry || way.geometry.length === 0) {
+    return Number.POSITIVE_INFINITY;
+  }
+
+  if (way.geometry.length === 1) {
+    return distanceMeters(location, {
+      latitude: way.geometry[0].lat,
+      longitude: way.geometry[0].lon,
+    });
+  }
+
+  let bestDistance = Number.POSITIVE_INFINITY;
+
+  for (let index = 1; index < way.geometry.length; index += 1) {
+    const previous = way.geometry[index - 1];
+    const current = way.geometry[index];
+    const segmentDistance = distancePointToSegmentMeters(
+      location,
+      { latitude: previous.lat, longitude: previous.lon },
+      { latitude: current.lat, longitude: current.lon },
+    );
+
+    if (segmentDistance < bestDistance) {
+      bestDistance = segmentDistance;
+    }
+  }
+
+  return bestDistance;
+}
+
 function nearestWay(
   ways: OverpassWay[],
   location: Coordinates,
@@ -77,22 +158,7 @@ function nearestWay(
   let winner: { way: OverpassWay; distance: number } | null = null;
 
   for (const way of ways) {
-    if (!way.geometry || way.geometry.length === 0) {
-      continue;
-    }
-
-    let bestDistance = Number.POSITIVE_INFINITY;
-
-    for (const point of way.geometry) {
-      const d = distanceMeters(location, {
-        latitude: point.lat,
-        longitude: point.lon,
-      });
-
-      if (d < bestDistance) {
-        bestDistance = d;
-      }
-    }
+    const bestDistance = distanceToWayMeters(way, location);
 
     if (!winner || bestDistance < winner.distance) {
       winner = { way, distance: bestDistance };
@@ -108,7 +174,8 @@ export async function resolveLiveSpeedLimitKmh(
   const query = `
 [out:json][timeout:8];
 (
-  way(around:250,${location.latitude},${location.longitude})["highway"]["maxspeed"];
+  way(around:300,${location.latitude},${location.longitude})
+    ["highway"~"^(motorway|trunk|primary|secondary|tertiary|unclassified|residential|service|living_street)$"];
 );
 out geom 50;
 `;
@@ -134,14 +201,24 @@ out geom 50;
     return { speedLimitKmh: null };
   }
 
-  const parsedLimit = parseMaxSpeedToKmh(nearest.way.tags?.maxspeed);
+  const explicitLimit =
+    parseMaxSpeedToKmh(nearest.way.tags?.maxspeed) ??
+    parseMaxSpeedToKmh(nearest.way.tags?.['maxspeed:forward']) ??
+    parseMaxSpeedToKmh(nearest.way.tags?.['maxspeed:backward']);
+
+  const parsedLimit = explicitLimit ?? defaultUrbanLimitForRoadClass(nearest.way.tags?.highway);
 
   if (!parsedLimit) {
-    return { speedLimitKmh: null, roadName: nearest.way.tags?.name };
+    return {
+      speedLimitKmh: null,
+      roadName: nearest.way.tags?.name,
+      roadClass: nearest.way.tags?.highway,
+    };
   }
 
   return {
     speedLimitKmh: parsedLimit,
     roadName: nearest.way.tags?.name,
+    roadClass: nearest.way.tags?.highway,
   };
 }

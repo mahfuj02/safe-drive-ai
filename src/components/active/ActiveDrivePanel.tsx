@@ -10,6 +10,7 @@ type ActiveDrivePanelProps = {
   currentSpeedKmh: number;
   speedLimitKmh: number;
   speedLimitSource: SpeedLimitSource;
+  roadLabel: string;
   overByKmh: number;
   alertThresholdKmh: number;
   isDemoMode: boolean;
@@ -22,6 +23,7 @@ export function ActiveDrivePanel({
   currentSpeedKmh,
   speedLimitKmh,
   speedLimitSource,
+  roadLabel,
   overByKmh,
   alertThresholdKmh,
   isDemoMode,
@@ -31,7 +33,7 @@ export function ActiveDrivePanel({
   return (
     <>
       <View style={styles.headerRow}>
-        <Text style={styles.driveRoadText}>Driving on: Winnipeg Route</Text>
+        <Text style={styles.driveRoadText}>Driving on: {roadLabel}</Text>
         <View style={[styles.modeBadge, isDemoMode ? styles.demoBadge : styles.liveBadge]}>
           <Text style={styles.modeBadgeText}>{isDemoMode ? 'DEMO' : 'LIVE'}</Text>
         </View>

@@ -12,6 +12,7 @@ export function DriveScreen() {
     speedLimitKmh,
     setSpeedLimitKmh,
     speedLimitSource,
+    roadLabel,
     currentSpeedKmh,
     isTracking,
     isStarting,
@@ -68,6 +69,7 @@ export function DriveScreen() {
             currentSpeedKmh={currentSpeedKmh}
             speedLimitKmh={speedLimitKmh}
             speedLimitSource={speedLimitSource}
+            roadLabel={roadLabel}
             overByKmh={overByKmh}
             alertThresholdKmh={alertThresholdKmh}
             isDemoMode={isDemoMode}

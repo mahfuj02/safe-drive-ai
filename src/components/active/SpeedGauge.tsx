@@ -16,20 +16,24 @@ export function SpeedGauge({
   speedLimitSource,
 }: SpeedGaugeProps) {
   const hasLiveLimit = speedLimitSource === 'live';
+  const isWarning = driveState === 'warning';
+  const isAlert = driveState === 'alert';
 
   return (
-    <View style={styles.row}>
+    <View style={[styles.row, isWarning && styles.rowWarning, isAlert && styles.rowAlert]}>
       <View>
         <Text
           style={[
             styles.speedValue,
-            driveState === 'alert' && styles.alertText,
-            driveState === 'warning' && styles.warningText,
+            isAlert && styles.alertText,
+            isWarning && styles.warningText,
           ]}
         >
           {Math.round(currentSpeedKmh)}
         </Text>
-        <Text style={styles.speedUnit}>km/h</Text>
+        <Text style={[styles.speedUnit, isWarning && styles.speedUnitWarning, isAlert && styles.speedUnitAlert]}>
+          km/h
+        </Text>
       </View>
 
       <View style={styles.limitBadge}>
@@ -54,6 +58,12 @@ const styles = StyleSheet.create({
     padding: spacing.xl,
     position: 'relative',
   },
+  rowWarning: {
+    backgroundColor: colors.gauge.panelWarning,
+  },
+  rowAlert: {
+    backgroundColor: colors.gauge.panelAlert,
+  },
   speedValue: {
     fontSize: 90,
     fontWeight: '900',
@@ -71,6 +81,12 @@ const styles = StyleSheet.create({
     color: colors.gauge.unit,
     fontSize: 36,
     fontWeight: '700',
+  },
+  speedUnitWarning: {
+    color: colors.gauge.unitWarning,
+  },
+  speedUnitAlert: {
+    color: colors.gauge.unitAlert,
   },
   limitBadge: {
     width: 104,

@@ -17,7 +17,39 @@ import {
   TripSummary,
 } from '../types/driving';
 
-const SPEED_LIMIT_REFRESH_MS = 15000;
+const SPEED_LIMIT_REFRESH_MS = 7000;
+const SPEED_LIMIT_MOVE_REFRESH_METERS = 70;
+const LIVE_LIMIT_STALE_MS = 35000;
+const SPEED_MAX_RISE_KMH_PER_SEC = 11;
+const SPEED_MAX_FALL_KMH_PER_SEC = 18;
+
+type LocationPoint = {
+  latitude: number;
+  longitude: number;
+};
+
+type SpeedSample = {
+  point: LocationPoint;
+  atMs: number;
+};
+
+function toRadians(deg: number): number {
+  return (deg * Math.PI) / 180;
+}
+
+function distanceMeters(a: LocationPoint, b: LocationPoint): number {
+  const earthRadius = 6371000;
+  const dLat = toRadians(b.latitude - a.latitude);
+  const dLon = toRadians(b.longitude - a.longitude);
+  const lat1 = toRadians(a.latitude);
+  const lat2 = toRadians(b.latitude);
+
+  const h =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLon / 2) * Math.sin(dLon / 2);
+
+  return 2 * earthRadius * Math.asin(Math.sqrt(h));
+}
 
 function getDriveState(overByKmh: number, alertThresholdKmh: number): DriveState {
   if (overByKmh >= alertThresholdKmh) {
@@ -41,6 +73,7 @@ export function useDriveSession() {
   const [locationStatus, setLocationStatus] = useState<LocationStatus>('inactive');
   const [permissionState, setPermissionState] = useState<PermissionState>('unknown');
   const [speedLimitSource, setSpeedLimitSource] = useState<SpeedLimitSource>('manual');
+  const [roadLabel, setRoadLabel] = useState('Road not detected');
   const [alertThresholdKmh, setAlertThresholdKmh] = useState(DEFAULT_ALERT_THRESHOLD_KMH);
   const [latestTripSummary, setLatestTripSummary] = useState<TripSummary | null>(null);
 
@@ -58,6 +91,12 @@ export function useDriveSession() {
   const previousDriveStateRef = useRef<DriveState>('safe');
   const lastSpeedLimitFetchAtRef = useRef(0);
   const isSpeedLimitFetchInFlightRef = useRef(false);
+  const lastFetchPointRef = useRef<LocationPoint | null>(null);
+  const lastLiveSpeedLimitRef = useRef<number | null>(null);
+  const lastLiveRoadLabelRef = useRef<string>('Road not detected');
+  const lastLiveResolvedAtRef = useRef(0);
+  const previousSpeedSampleRef = useRef<SpeedSample | null>(null);
+  const displayedSpeedKmhRef = useRef(0);
 
   useEffect(() => {
     speedLimitRef.current = speedLimitKmh;
@@ -174,11 +213,16 @@ export function useDriveSession() {
     setIsTracking(false);
     setIsDemoMode(false);
     setCurrentSpeedKmh(0);
+    displayedSpeedKmhRef.current = 0;
+    previousSpeedSampleRef.current = null;
     overLimitStartRef.current = null;
     if (permissionState === 'granted') {
       setLocationStatus('active');
     }
     setSpeedLimitSource('manual');
+    if (!wasTracking || wasDemoMode) {
+      setRoadLabel('Road not detected');
+    }
     setStatusText('Tracking stopped.');
   };
 
@@ -232,12 +276,16 @@ export function useDriveSession() {
       setIsDemoMode(false);
       setLocationStatus('active');
       setSpeedLimitSource('unknown');
+      setRoadLabel('Searching road...');
       setIsTracking(true);
       setLatestTripSummary(null);
       resetSessionMetrics();
       overLimitStartRef.current = null;
       lastAlertAtRef.current = 0;
       lastSpeedLimitFetchAtRef.current = 0;
+      lastFetchPointRef.current = null;
+      previousSpeedSampleRef.current = null;
+      displayedSpeedKmhRef.current = 0;
 
       locationSubRef.current = await Location.watchPositionAsync(
         {
@@ -248,35 +296,102 @@ export function useDriveSession() {
         },
         (location) => {
           const now = Date.now();
+          const point = {
+            latitude: location.coords.latitude,
+            longitude: location.coords.longitude,
+          };
           const speedMps = Math.max(0, location.coords.speed ?? 0);
-          const kmh = speedMps * 3.6;
-          const over = kmh - speedLimitRef.current;
+          const rawSpeedKmh = speedMps * 3.6;
 
-          setCurrentSpeedKmh(kmh);
-          recordSessionMetrics(kmh, over);
+          let stabilizedSpeedKmh = rawSpeedKmh;
+          const previousSample = previousSpeedSampleRef.current;
+
+          if (previousSample) {
+            const elapsedSec = Math.max(0.001, (now - previousSample.atMs) / 1000);
+            const traveledMeters = distanceMeters(previousSample.point, point);
+            const derivedSpeedKmh = (traveledMeters / elapsedSec) * 3.6;
+            const boostedSpeedKmh = Math.max(rawSpeedKmh, rawSpeedKmh * 0.7 + derivedSpeedKmh * 0.3);
+            const maxRise = SPEED_MAX_RISE_KMH_PER_SEC * elapsedSec;
+            const maxFall = SPEED_MAX_FALL_KMH_PER_SEC * elapsedSec;
+
+            stabilizedSpeedKmh = Math.min(
+              displayedSpeedKmhRef.current + maxRise,
+              Math.max(displayedSpeedKmhRef.current - maxFall, boostedSpeedKmh),
+            );
+          }
+
+          previousSpeedSampleRef.current = { point, atMs: now };
+          displayedSpeedKmhRef.current = stabilizedSpeedKmh;
+
+          const over = stabilizedSpeedKmh - speedLimitRef.current;
+
+          setCurrentSpeedKmh(stabilizedSpeedKmh);
+          recordSessionMetrics(stabilizedSpeedKmh, over);
+
+          const distanceSinceLastFetch = lastFetchPointRef.current
+            ? distanceMeters(lastFetchPointRef.current, point)
+            : Number.POSITIVE_INFINITY;
+
+          const shouldRefreshByTime = now - lastSpeedLimitFetchAtRef.current >= SPEED_LIMIT_REFRESH_MS;
+          const shouldRefreshByMovement = distanceSinceLastFetch >= SPEED_LIMIT_MOVE_REFRESH_METERS;
 
           const canRefreshSpeedLimit =
             !isSpeedLimitFetchInFlightRef.current &&
-            now - lastSpeedLimitFetchAtRef.current >= SPEED_LIMIT_REFRESH_MS;
+            (shouldRefreshByTime || shouldRefreshByMovement);
 
           if (canRefreshSpeedLimit) {
             isSpeedLimitFetchInFlightRef.current = true;
             lastSpeedLimitFetchAtRef.current = now;
+            lastFetchPointRef.current = point;
 
-            void resolveLiveSpeedLimitKmh({
-              latitude: location.coords.latitude,
-              longitude: location.coords.longitude,
-            })
+            void resolveLiveSpeedLimitKmh(point)
               .then((result) => {
                 if (result.speedLimitKmh) {
                   setSpeedLimitKmh(result.speedLimitKmh);
                   setSpeedLimitSource('live');
+                  const nextRoadLabel = result.roadName ?? result.roadClass ?? 'Unnamed road';
+                  setRoadLabel(nextRoadLabel);
+                  lastLiveSpeedLimitRef.current = result.speedLimitKmh;
+                  lastLiveRoadLabelRef.current = nextRoadLabel;
+                  lastLiveResolvedAtRef.current = Date.now();
                 } else {
-                  setSpeedLimitSource('unknown');
+                  const hasFreshCachedLive =
+                    lastLiveSpeedLimitRef.current !== null &&
+                    Date.now() - lastLiveResolvedAtRef.current <= LIVE_LIMIT_STALE_MS;
+
+                  if (hasFreshCachedLive) {
+                    const cachedLimit = lastLiveSpeedLimitRef.current;
+                    if (cachedLimit === null) {
+                      return;
+                    }
+
+                    setSpeedLimitKmh(cachedLimit);
+                    setSpeedLimitSource('live');
+                    setRoadLabel(lastLiveRoadLabelRef.current);
+                  } else {
+                    setSpeedLimitSource('unknown');
+                    setRoadLabel(result.roadName ?? result.roadClass ?? 'Road not detected');
+                  }
                 }
               })
               .catch(() => {
-                setSpeedLimitSource('unknown');
+                const hasFreshCachedLive =
+                  lastLiveSpeedLimitRef.current !== null &&
+                  Date.now() - lastLiveResolvedAtRef.current <= LIVE_LIMIT_STALE_MS;
+
+                if (hasFreshCachedLive) {
+                  const cachedLimit = lastLiveSpeedLimitRef.current;
+                  if (cachedLimit === null) {
+                    return;
+                  }
+
+                  setSpeedLimitKmh(cachedLimit);
+                  setSpeedLimitSource('live');
+                  setRoadLabel(lastLiveRoadLabelRef.current);
+                } else {
+                  setSpeedLimitSource('unknown');
+                  setRoadLabel('Road lookup unavailable');
+                }
               })
               .finally(() => {
                 isSpeedLimitFetchInFlightRef.current = false;
@@ -304,6 +419,7 @@ export function useDriveSession() {
     setIsTracking(true);
     setIsDemoMode(true);
     setSpeedLimitSource('manual');
+    setRoadLabel('Demo route');
     setLatestTripSummary(null);
     resetSessionMetrics();
     setLocationStatus('inactive');
@@ -354,6 +470,7 @@ export function useDriveSession() {
     speedLimitKmh,
     setSpeedLimitKmh,
     speedLimitSource,
+    roadLabel,
     currentSpeedKmh,
     isTracking,
     isStarting,
