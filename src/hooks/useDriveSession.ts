@@ -75,17 +75,40 @@ export function useDriveSession() {
   const driveState = getDriveState(overByKmh, alertThresholdKmh);
 
   const requestLocationAccess = async () => {
-    const { status } = await Location.requestForegroundPermissionsAsync();
+    setStatusText('Requesting location permission...');
 
-    if (status === 'granted') {
+    const currentPermission = await Location.getForegroundPermissionsAsync();
+
+    if (currentPermission.status === 'granted') {
       setPermissionState('granted');
+      setLocationStatus('active');
+      setStatusText('Location access already granted. You can start drive now.');
+      return true;
+    }
+
+    if (!currentPermission.canAskAgain) {
+      setPermissionState('denied');
+      setLocationStatus('inactive');
+      setStatusText('Permission blocked by OS. Tap Open Settings to allow location.');
+      return false;
+    }
+
+    const requestedPermission = await Location.requestForegroundPermissionsAsync();
+
+    if (requestedPermission.status === 'granted') {
+      setPermissionState('granted');
+      setLocationStatus('active');
       setStatusText('Location access granted. You can start drive now.');
       return true;
     }
 
     setPermissionState('denied');
     setLocationStatus('inactive');
-    setStatusText('Location permission denied. Enable it in settings.');
+    if (!requestedPermission.canAskAgain) {
+      setStatusText('Permission blocked by OS. Tap Open Settings to allow location.');
+    } else {
+      setStatusText('Location permission denied. Please allow to start drive.');
+    }
     return false;
   };
 
@@ -152,7 +175,9 @@ export function useDriveSession() {
     setIsDemoMode(false);
     setCurrentSpeedKmh(0);
     overLimitStartRef.current = null;
-    setLocationStatus('inactive');
+    if (permissionState === 'granted') {
+      setLocationStatus('active');
+    }
     setSpeedLimitSource('manual');
     setStatusText('Tracking stopped.');
   };
@@ -308,10 +333,13 @@ export function useDriveSession() {
     void Location.getForegroundPermissionsAsync().then(({ status }) => {
       if (status === 'granted') {
         setPermissionState('granted');
+        setLocationStatus('active');
       } else if (status === 'denied') {
         setPermissionState('denied');
+        setLocationStatus('inactive');
       } else {
         setPermissionState('unknown');
+        setLocationStatus('inactive');
       }
     });
 
