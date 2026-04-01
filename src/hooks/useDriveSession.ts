@@ -1,6 +1,7 @@
 import * as Location from 'expo-location';
 import * as Speech from 'expo-speech';
-import { Linking } from 'react-native';
+import * as Haptics from 'expo-haptics';
+import { Linking, Vibration } from 'react-native';
 import { useEffect, useRef, useState } from 'react';
 import {
   ALERT_COOLDOWN_MS,
@@ -22,6 +23,7 @@ const SPEED_LIMIT_MOVE_REFRESH_METERS = 70;
 const LIVE_LIMIT_STALE_MS = 35000;
 const SPEED_MAX_RISE_KMH_PER_SEC = 11;
 const SPEED_MAX_FALL_KMH_PER_SEC = 18;
+const ALERT_VIBRATION_PATTERN_MS: number[] = [0, 450, 140, 450];
 
 type LocationPoint = {
   latitude: number;
@@ -252,12 +254,15 @@ export function useDriveSession() {
     }
 
     lastAlertAtRef.current = now;
-    setStatusText(`Alert sent: ${Math.round(overKmh)} km/h over limit.`);
+    setStatusText(`Critical alert: ${Math.round(overKmh)} km/h over limit. Reduce speed now.`);
+    Vibration.vibrate(ALERT_VIBRATION_PATTERN_MS, false);
+    void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
     await Speech.speak(
-      `Reduce speed. You are ${Math.round(overKmh)} kilometers per hour over the speed limit.`,
+      `Reduce speed now. You are ${Math.round(overKmh)} kilometers per hour over the speed limit.`,
       {
-        rate: 0.95,
+        rate: 0.9,
         pitch: 1,
+        volume: 1,
       },
     );
   };
