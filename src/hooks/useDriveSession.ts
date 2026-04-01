@@ -228,6 +228,21 @@ export function useDriveSession() {
     setStatusText('Tracking stopped.');
   };
 
+  const triggerCriticalOverspeedAlert = async (overKmh: number) => {
+    lastAlertAtRef.current = Date.now();
+    setStatusText(`Critical alert: ${Math.round(overKmh)} km/h over limit. Reduce speed now.`);
+    Vibration.vibrate(ALERT_VIBRATION_PATTERN_MS, false);
+    void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+    await Speech.speak(
+      `Reduce speed now. You are ${Math.round(overKmh)} kilometers per hour over the speed limit.`,
+      {
+        rate: 0.9,
+        pitch: 1,
+        volume: 1,
+      },
+    );
+  };
+
   const maybeSpeakOverspeedAlert = async (overKmh: number) => {
     const now = Date.now();
 
@@ -253,18 +268,7 @@ export function useDriveSession() {
       return;
     }
 
-    lastAlertAtRef.current = now;
-    setStatusText(`Critical alert: ${Math.round(overKmh)} km/h over limit. Reduce speed now.`);
-    Vibration.vibrate(ALERT_VIBRATION_PATTERN_MS, false);
-    void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-    await Speech.speak(
-      `Reduce speed now. You are ${Math.round(overKmh)} kilometers per hour over the speed limit.`,
-      {
-        rate: 0.9,
-        pitch: 1,
-        volume: 1,
-      },
-    );
+    await triggerCriticalOverspeedAlert(overKmh);
   };
 
   const startTracking = async () => {
@@ -438,8 +442,16 @@ export function useDriveSession() {
 
   const setDemoSpeedKmh = (speedKmh: number) => {
     setCurrentSpeedKmh(speedKmh);
-    recordSessionMetrics(speedKmh, speedKmh - speedLimitRef.current);
+    const overKmh = speedKmh - speedLimitRef.current;
+    recordSessionMetrics(speedKmh, overKmh);
     setStatusText(`Demo speed set to ${Math.round(speedKmh)} km/h.`);
+
+    const inAlert = overKmh >= alertThresholdRef.current;
+    const canTriggerNow = Date.now() - lastAlertAtRef.current >= 1500;
+
+    if (inAlert && canTriggerNow) {
+      void triggerCriticalOverspeedAlert(overKmh);
+    }
   };
 
   const closeTripSummary = () => {
