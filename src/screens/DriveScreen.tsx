@@ -24,6 +24,7 @@ export function DriveScreen() {
     setAlertThresholdKmh,
     overByKmh,
     driveState,
+    requestLocationAccess,
     startTracking,
     startDemoMode,
     setDemoSpeedKmh,
@@ -53,9 +54,10 @@ export function DriveScreen() {
             isStarting={isStarting}
             alertThresholdKmh={alertThresholdKmh}
             speedLimitKmh={speedLimitKmh}
-              speedLimitSource={speedLimitSource}
+            speedLimitSource={speedLimitSource}
             onSelectThreshold={setAlertThresholdKmh}
             onChangeSpeedLimit={setSpeedLimitKmh}
+            onRequestLocationAccess={requestLocationAccess}
             onStartDrive={startTracking}
             onStartDemoDrive={startDemoMode}
             onOpenSettings={openAppSettings}
@@ -65,7 +67,7 @@ export function DriveScreen() {
             driveState={driveState}
             currentSpeedKmh={currentSpeedKmh}
             speedLimitKmh={speedLimitKmh}
-              speedLimitSource={speedLimitSource}
+            speedLimitSource={speedLimitSource}
             overByKmh={overByKmh}
             alertThresholdKmh={alertThresholdKmh}
             isDemoMode={isDemoMode}

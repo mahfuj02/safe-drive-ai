@@ -15,6 +15,7 @@ type SetupPanelProps = {
   speedLimitSource: SpeedLimitSource;
   onSelectThreshold: (value: number) => void;
   onChangeSpeedLimit: (value: number) => void;
+  onRequestLocationAccess: () => void;
   onStartDrive: () => void;
   onStartDemoDrive: () => void;
   onOpenSettings: () => void;
@@ -29,10 +30,13 @@ export function SetupPanel({
   speedLimitSource,
   onSelectThreshold,
   onChangeSpeedLimit,
+  onRequestLocationAccess,
   onStartDrive,
   onStartDemoDrive,
   onOpenSettings,
 }: SetupPanelProps) {
+  const canStartDrive = permissionState === 'granted';
+
   return (
     <>
       <Text style={styles.title}>SafeDrive AI</Text>
@@ -54,7 +58,13 @@ export function SetupPanel({
         onChangeSpeedLimit={onChangeSpeedLimit}
       />
 
-      <StartDriveButton onPress={onStartDrive} isLoading={isStarting} />
+      {!canStartDrive && (
+        <Pressable onPress={onRequestLocationAccess} style={styles.allowLocationButton}>
+          <Text style={styles.allowLocationButtonText}>ALLOW LOCATION ACCESS</Text>
+        </Pressable>
+      )}
+
+      <StartDriveButton onPress={onStartDrive} isLoading={isStarting} isEnabled={canStartDrive} />
 
       {__DEV__ && (
         <View style={styles.demoRow}>
@@ -87,6 +97,18 @@ const styles = StyleSheet.create({
   demoButtonText: {
     color: colors.button.darkText,
     fontWeight: '800',
+    fontSize: 13,
+  },
+  allowLocationButton: {
+    marginTop: spacing.lg,
+    backgroundColor: colors.button.dark,
+    borderRadius: 10,
+    paddingVertical: spacing.md,
+    alignItems: 'center',
+  },
+  allowLocationButtonText: {
+    color: colors.button.darkText,
+    fontWeight: '900',
     fontSize: 13,
   },
 });

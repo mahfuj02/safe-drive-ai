@@ -74,6 +74,21 @@ export function useDriveSession() {
   const overByKmh = Math.max(0, currentSpeedKmh - speedLimitKmh);
   const driveState = getDriveState(overByKmh, alertThresholdKmh);
 
+  const requestLocationAccess = async () => {
+    const { status } = await Location.requestForegroundPermissionsAsync();
+
+    if (status === 'granted') {
+      setPermissionState('granted');
+      setStatusText('Location access granted. You can start drive now.');
+      return true;
+    }
+
+    setPermissionState('denied');
+    setLocationStatus('inactive');
+    setStatusText('Location permission denied. Enable it in settings.');
+    return false;
+  };
+
   const resetSessionMetrics = () => {
     sessionStartedAtRef.current = Date.now();
     maxSpeedKmhRef.current = 0;
@@ -182,16 +197,12 @@ export function useDriveSession() {
     setIsStarting(true);
 
     try {
-      const { status } = await Location.requestForegroundPermissionsAsync();
-
-      if (status !== 'granted') {
-        setPermissionState('denied');
+      if (permissionState !== 'granted') {
         setLocationStatus('inactive');
-        setStatusText('Location permission denied. Enable it in settings.');
+        setStatusText('Allow location access first, then tap Start Drive.');
         return;
       }
 
-      setPermissionState('granted');
       setStatusText('Tracking in progress...');
       setIsDemoMode(false);
       setLocationStatus('active');
@@ -294,6 +305,16 @@ export function useDriveSession() {
   };
 
   useEffect(() => {
+    void Location.getForegroundPermissionsAsync().then(({ status }) => {
+      if (status === 'granted') {
+        setPermissionState('granted');
+      } else if (status === 'denied') {
+        setPermissionState('denied');
+      } else {
+        setPermissionState('unknown');
+      }
+    });
+
     return () => {
       if (locationSubRef.current) {
         locationSubRef.current.remove();
@@ -317,6 +338,7 @@ export function useDriveSession() {
     setAlertThresholdKmh,
     overByKmh,
     driveState,
+    requestLocationAccess,
     startTracking,
     startDemoMode,
     setDemoSpeedKmh,
