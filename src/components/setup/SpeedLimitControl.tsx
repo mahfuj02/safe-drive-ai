@@ -3,17 +3,20 @@ import {
   MAX_SPEED_LIMIT_KMH,
   MIN_SPEED_LIMIT_KMH,
 } from '../../constants/driving';
+import { SpeedLimitSource } from '../../types/driving';
 import { colors, radii, spacing } from '../../theme/tokens';
 import { clamp } from '../../utils/math';
 import { SectionCard } from '../common/SectionCard';
 
 type SpeedLimitControlProps = {
   speedLimitKmh: number;
+  speedLimitSource: SpeedLimitSource;
   onChangeSpeedLimit: (value: number) => void;
 };
 
 export function SpeedLimitControl({
   speedLimitKmh,
+  speedLimitSource,
   onChangeSpeedLimit,
 }: SpeedLimitControlProps) {
   return (
@@ -39,6 +42,10 @@ export function SpeedLimitControl({
           <Text style={styles.buttonText}>+5</Text>
         </Pressable>
       </View>
+
+      <Text style={styles.sourceText}>
+        Source: {speedLimitSource === 'live' ? 'Live map data' : speedLimitSource === 'unknown' ? 'Unknown (fallback)' : 'Manual'}
+      </Text>
     </SectionCard>
   );
 }
@@ -64,5 +71,10 @@ const styles = StyleSheet.create({
     color: colors.text.primary,
     fontWeight: '900',
     fontSize: 23,
+  },
+  sourceText: {
+    marginTop: spacing.sm,
+    color: colors.text.secondary,
+    fontSize: 12,
   },
 });

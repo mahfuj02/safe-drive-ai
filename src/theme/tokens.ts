@@ -27,6 +27,8 @@ export const colors = {
     warningBackground: 'rgba(124, 84, 13, 0.48)',
     alertText: '#FFE5E5',
     alertBackground: 'rgba(161, 16, 16, 0.9)',
+    liveText: '#79F79B',
+    unknownText: '#FFD37A',
   },
   gauge: {
     panel: '#13263A',

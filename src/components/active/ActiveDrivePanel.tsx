@@ -1,6 +1,6 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { colors, radii, spacing } from '../../theme/tokens';
-import { DriveState } from '../../types/driving';
+import { DriveState, SpeedLimitSource } from '../../types/driving';
 import { DebugStateControls } from './DebugStateControls';
 import { DriveStateBanner } from './DriveStateBanner';
 import { SpeedGauge } from './SpeedGauge';
@@ -9,6 +9,7 @@ type ActiveDrivePanelProps = {
   driveState: DriveState;
   currentSpeedKmh: number;
   speedLimitKmh: number;
+  speedLimitSource: SpeedLimitSource;
   overByKmh: number;
   alertThresholdKmh: number;
   isDemoMode: boolean;
@@ -20,6 +21,7 @@ export function ActiveDrivePanel({
   driveState,
   currentSpeedKmh,
   speedLimitKmh,
+  speedLimitSource,
   overByKmh,
   alertThresholdKmh,
   isDemoMode,
@@ -41,9 +43,12 @@ export function ActiveDrivePanel({
         driveState={driveState}
         currentSpeedKmh={currentSpeedKmh}
         speedLimitKmh={speedLimitKmh}
+        speedLimitSource={speedLimitSource}
       />
 
-      <Text style={styles.overText}>Over: {Math.round(overByKmh)} km/h</Text>
+      <Text style={styles.overText}>
+        Over: {speedLimitSource === 'live' ? `${Math.round(overByKmh)} km/h` : 'Not available'}
+      </Text>
 
       {__DEV__ && isDemoMode && (
         <DebugStateControls

@@ -11,6 +11,7 @@ export function DriveScreen() {
   const {
     speedLimitKmh,
     setSpeedLimitKmh,
+    speedLimitSource,
     currentSpeedKmh,
     isTracking,
     isStarting,
@@ -52,6 +53,7 @@ export function DriveScreen() {
             isStarting={isStarting}
             alertThresholdKmh={alertThresholdKmh}
             speedLimitKmh={speedLimitKmh}
+              speedLimitSource={speedLimitSource}
             onSelectThreshold={setAlertThresholdKmh}
             onChangeSpeedLimit={setSpeedLimitKmh}
             onStartDrive={startTracking}
@@ -63,6 +65,7 @@ export function DriveScreen() {
             driveState={driveState}
             currentSpeedKmh={currentSpeedKmh}
             speedLimitKmh={speedLimitKmh}
+              speedLimitSource={speedLimitSource}
             overByKmh={overByKmh}
             alertThresholdKmh={alertThresholdKmh}
             isDemoMode={isDemoMode}

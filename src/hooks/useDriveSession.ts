@@ -8,7 +8,16 @@ import {
   DEFAULT_ALERT_THRESHOLD_KMH,
   DEFAULT_SPEED_LIMIT_KMH,
 } from '../constants/driving';
-import { DriveState, LocationStatus, PermissionState, TripSummary } from '../types/driving';
+import { resolveLiveSpeedLimitKmh } from '../services/speedLimit/liveSpeedLimitService';
+import {
+  DriveState,
+  LocationStatus,
+  PermissionState,
+  SpeedLimitSource,
+  TripSummary,
+} from '../types/driving';
+
+const SPEED_LIMIT_REFRESH_MS = 15000;
 
 function getDriveState(overByKmh: number, alertThresholdKmh: number): DriveState {
   if (overByKmh >= alertThresholdKmh) {
@@ -31,6 +40,7 @@ export function useDriveSession() {
   const [statusText, setStatusText] = useState('Tap Start Drive to begin.');
   const [locationStatus, setLocationStatus] = useState<LocationStatus>('inactive');
   const [permissionState, setPermissionState] = useState<PermissionState>('unknown');
+  const [speedLimitSource, setSpeedLimitSource] = useState<SpeedLimitSource>('manual');
   const [alertThresholdKmh, setAlertThresholdKmh] = useState(DEFAULT_ALERT_THRESHOLD_KMH);
   const [latestTripSummary, setLatestTripSummary] = useState<TripSummary | null>(null);
 
@@ -38,6 +48,7 @@ export function useDriveSession() {
   const overLimitStartRef = useRef<number | null>(null);
   const lastAlertAtRef = useRef(0);
   const speedLimitRef = useRef(speedLimitKmh);
+  const speedLimitSourceRef = useRef<SpeedLimitSource>(speedLimitSource);
   const alertThresholdRef = useRef(alertThresholdKmh);
   const sessionStartedAtRef = useRef<number | null>(null);
   const maxSpeedKmhRef = useRef(0);
@@ -45,10 +56,16 @@ export function useDriveSession() {
   const warningCountRef = useRef(0);
   const alertCountRef = useRef(0);
   const previousDriveStateRef = useRef<DriveState>('safe');
+  const lastSpeedLimitFetchAtRef = useRef(0);
+  const isSpeedLimitFetchInFlightRef = useRef(false);
 
   useEffect(() => {
     speedLimitRef.current = speedLimitKmh;
   }, [speedLimitKmh]);
+
+  useEffect(() => {
+    speedLimitSourceRef.current = speedLimitSource;
+  }, [speedLimitSource]);
 
   useEffect(() => {
     alertThresholdRef.current = alertThresholdKmh;
@@ -121,11 +138,17 @@ export function useDriveSession() {
     setCurrentSpeedKmh(0);
     overLimitStartRef.current = null;
     setLocationStatus('inactive');
+    setSpeedLimitSource('manual');
     setStatusText('Tracking stopped.');
   };
 
   const maybeSpeakOverspeedAlert = async (overKmh: number) => {
     const now = Date.now();
+
+    if (!isDemoMode && speedLimitSourceRef.current !== 'live') {
+      overLimitStartRef.current = null;
+      return;
+    }
 
     if (overKmh < alertThresholdRef.current) {
       overLimitStartRef.current = null;
@@ -172,11 +195,13 @@ export function useDriveSession() {
       setStatusText('Tracking in progress...');
       setIsDemoMode(false);
       setLocationStatus('active');
+      setSpeedLimitSource('unknown');
       setIsTracking(true);
       setLatestTripSummary(null);
       resetSessionMetrics();
       overLimitStartRef.current = null;
       lastAlertAtRef.current = 0;
+      lastSpeedLimitFetchAtRef.current = 0;
 
       locationSubRef.current = await Location.watchPositionAsync(
         {
@@ -186,12 +211,42 @@ export function useDriveSession() {
           mayShowUserSettingsDialog: true,
         },
         (location) => {
+          const now = Date.now();
           const speedMps = Math.max(0, location.coords.speed ?? 0);
           const kmh = speedMps * 3.6;
           const over = kmh - speedLimitRef.current;
 
           setCurrentSpeedKmh(kmh);
           recordSessionMetrics(kmh, over);
+
+          const canRefreshSpeedLimit =
+            !isSpeedLimitFetchInFlightRef.current &&
+            now - lastSpeedLimitFetchAtRef.current >= SPEED_LIMIT_REFRESH_MS;
+
+          if (canRefreshSpeedLimit) {
+            isSpeedLimitFetchInFlightRef.current = true;
+            lastSpeedLimitFetchAtRef.current = now;
+
+            void resolveLiveSpeedLimitKmh({
+              latitude: location.coords.latitude,
+              longitude: location.coords.longitude,
+            })
+              .then((result) => {
+                if (result.speedLimitKmh) {
+                  setSpeedLimitKmh(result.speedLimitKmh);
+                  setSpeedLimitSource('live');
+                } else {
+                  setSpeedLimitSource('unknown');
+                }
+              })
+              .catch(() => {
+                setSpeedLimitSource('unknown');
+              })
+              .finally(() => {
+                isSpeedLimitFetchInFlightRef.current = false;
+              });
+          }
+
           void maybeSpeakOverspeedAlert(over);
         },
       );
@@ -212,6 +267,7 @@ export function useDriveSession() {
 
     setIsTracking(true);
     setIsDemoMode(true);
+    setSpeedLimitSource('manual');
     setLatestTripSummary(null);
     resetSessionMetrics();
     setLocationStatus('inactive');
@@ -248,6 +304,7 @@ export function useDriveSession() {
   return {
     speedLimitKmh,
     setSpeedLimitKmh,
+    speedLimitSource,
     currentSpeedKmh,
     isTracking,
     isStarting,

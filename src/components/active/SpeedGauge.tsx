@@ -1,18 +1,22 @@
 import { StyleSheet, Text, View } from 'react-native';
 import { colors, radii, spacing } from '../../theme/tokens';
-import { DriveState } from '../../types/driving';
+import { DriveState, SpeedLimitSource } from '../../types/driving';
 
 type SpeedGaugeProps = {
   driveState: DriveState;
   currentSpeedKmh: number;
   speedLimitKmh: number;
+  speedLimitSource: SpeedLimitSource;
 };
 
 export function SpeedGauge({
   driveState,
   currentSpeedKmh,
   speedLimitKmh,
+  speedLimitSource,
 }: SpeedGaugeProps) {
+  const hasLiveLimit = speedLimitSource === 'live';
+
   return (
     <View style={styles.row}>
       <View>
@@ -29,9 +33,13 @@ export function SpeedGauge({
       </View>
 
       <View style={styles.limitBadge}>
-        <Text style={styles.limitBadgeValue}>{speedLimitKmh}</Text>
+        <Text style={styles.limitBadgeValue}>{hasLiveLimit ? speedLimitKmh : '--'}</Text>
         <Text style={styles.limitBadgeText}>Limit</Text>
       </View>
+
+      <Text style={[styles.sourceText, hasLiveLimit ? styles.sourceLive : styles.sourceUnknown]}>
+        {hasLiveLimit ? 'Live speed limit' : 'Limit unavailable'}
+      </Text>
     </View>
   );
 }
@@ -44,6 +52,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.gauge.panel,
     borderRadius: radii.xl,
     padding: spacing.xl,
+    position: 'relative',
   },
   speedValue: {
     fontSize: 90,
@@ -83,5 +92,18 @@ const styles = StyleSheet.create({
     color: colors.gauge.limitBadgeLabel,
     fontSize: 18,
     fontWeight: '700',
+  },
+  sourceText: {
+    position: 'absolute',
+    left: spacing.xl,
+    bottom: spacing.sm,
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  sourceLive: {
+    color: colors.state.liveText,
+  },
+  sourceUnknown: {
+    color: colors.state.unknownText,
   },
 });

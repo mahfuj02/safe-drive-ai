@@ -4,6 +4,8 @@ export type PermissionState = 'unknown' | 'granted' | 'denied';
 
 export type DriveState = 'safe' | 'warning' | 'alert';
 
+export type SpeedLimitSource = 'manual' | 'live' | 'unknown';
+
 export type TripSummary = {
 	durationSec: number;
 	maxSpeedKmh: number;

@@ -1,5 +1,5 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { LocationStatus, PermissionState } from '../../types/driving';
+import { LocationStatus, PermissionState, SpeedLimitSource } from '../../types/driving';
 import { colors, spacing } from '../../theme/tokens';
 import { PermissionStatusCard } from './PermissionStatusCard';
 import { SpeedLimitControl } from './SpeedLimitControl';
@@ -12,6 +12,7 @@ type SetupPanelProps = {
   isStarting: boolean;
   alertThresholdKmh: number;
   speedLimitKmh: number;
+  speedLimitSource: SpeedLimitSource;
   onSelectThreshold: (value: number) => void;
   onChangeSpeedLimit: (value: number) => void;
   onStartDrive: () => void;
@@ -25,6 +26,7 @@ export function SetupPanel({
   isStarting,
   alertThresholdKmh,
   speedLimitKmh,
+  speedLimitSource,
   onSelectThreshold,
   onChangeSpeedLimit,
   onStartDrive,
@@ -48,6 +50,7 @@ export function SetupPanel({
 
       <SpeedLimitControl
         speedLimitKmh={speedLimitKmh}
+        speedLimitSource={speedLimitSource}
         onChangeSpeedLimit={onChangeSpeedLimit}
       />
 
