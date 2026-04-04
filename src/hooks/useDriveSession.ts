@@ -20,9 +20,8 @@ import {
 
 const SPEED_LIMIT_REFRESH_MS = 7000;
 const SPEED_LIMIT_MOVE_REFRESH_METERS = 70;
+const ROAD_LABEL_REFRESH_MS = 15000;
 const LIVE_LIMIT_STALE_MS = 35000;
-const SPEED_MAX_RISE_KMH_PER_SEC = 11;
-const SPEED_MAX_FALL_KMH_PER_SEC = 18;
 const ALERT_VIBRATION_PATTERN_MS: number[] = [0, 450, 140, 450];
 
 type LocationPoint = {
@@ -33,6 +32,14 @@ type LocationPoint = {
 type SpeedSample = {
   point: LocationPoint;
   atMs: number;
+};
+
+type RoadLabelCandidate = {
+  roadName?: string;
+  roadClass?: string;
+  street?: string;
+  district?: string;
+  city?: string;
 };
 
 function toRadians(deg: number): number {
@@ -51,6 +58,30 @@ function distanceMeters(a: LocationPoint, b: LocationPoint): number {
     Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLon / 2) * Math.sin(dLon / 2);
 
   return 2 * earthRadius * Math.asin(Math.sqrt(h));
+}
+
+function buildRoadLabel(candidate: RoadLabelCandidate): string {
+  if (candidate.roadName) {
+    return candidate.roadName;
+  }
+
+  if (candidate.street) {
+    return candidate.street;
+  }
+
+  if (candidate.roadClass) {
+    return candidate.roadClass.replace(/_/g, ' ');
+  }
+
+  if (candidate.district && candidate.city) {
+    return `${candidate.district}, ${candidate.city}`;
+  }
+
+  if (candidate.city) {
+    return candidate.city;
+  }
+
+  return 'Road not detected';
 }
 
 function getDriveState(overByKmh: number, alertThresholdKmh: number): DriveState {
@@ -84,6 +115,7 @@ export function useDriveSession() {
   const lastAlertAtRef = useRef(0);
   const speedLimitRef = useRef(speedLimitKmh);
   const speedLimitSourceRef = useRef<SpeedLimitSource>(speedLimitSource);
+  const roadLabelRef = useRef(roadLabel);
   const alertThresholdRef = useRef(alertThresholdKmh);
   const sessionStartedAtRef = useRef<number | null>(null);
   const maxSpeedKmhRef = useRef(0);
@@ -99,6 +131,7 @@ export function useDriveSession() {
   const lastLiveResolvedAtRef = useRef(0);
   const previousSpeedSampleRef = useRef<SpeedSample | null>(null);
   const displayedSpeedKmhRef = useRef(0);
+  const lastRoadLabelFetchAtRef = useRef(0);
 
   useEffect(() => {
     speedLimitRef.current = speedLimitKmh;
@@ -107,6 +140,10 @@ export function useDriveSession() {
   useEffect(() => {
     speedLimitSourceRef.current = speedLimitSource;
   }, [speedLimitSource]);
+
+  useEffect(() => {
+    roadLabelRef.current = roadLabel;
+  }, [roadLabel]);
 
   useEffect(() => {
     alertThresholdRef.current = alertThresholdKmh;
@@ -292,6 +329,7 @@ export function useDriveSession() {
       overLimitStartRef.current = null;
       lastAlertAtRef.current = 0;
       lastSpeedLimitFetchAtRef.current = 0;
+      lastRoadLabelFetchAtRef.current = 0;
       lastFetchPointRef.current = null;
       previousSpeedSampleRef.current = null;
       displayedSpeedKmhRef.current = 0;
@@ -311,31 +349,25 @@ export function useDriveSession() {
           };
           const speedMps = Math.max(0, location.coords.speed ?? 0);
           const rawSpeedKmh = speedMps * 3.6;
-
-          let stabilizedSpeedKmh = rawSpeedKmh;
           const previousSample = previousSpeedSampleRef.current;
+          let currentSpeedFromGpsKmh = rawSpeedKmh;
 
           if (previousSample) {
             const elapsedSec = Math.max(0.001, (now - previousSample.atMs) / 1000);
             const traveledMeters = distanceMeters(previousSample.point, point);
             const derivedSpeedKmh = (traveledMeters / elapsedSec) * 3.6;
-            const boostedSpeedKmh = Math.max(rawSpeedKmh, rawSpeedKmh * 0.7 + derivedSpeedKmh * 0.3);
-            const maxRise = SPEED_MAX_RISE_KMH_PER_SEC * elapsedSec;
-            const maxFall = SPEED_MAX_FALL_KMH_PER_SEC * elapsedSec;
-
-            stabilizedSpeedKmh = Math.min(
-              displayedSpeedKmhRef.current + maxRise,
-              Math.max(displayedSpeedKmhRef.current - maxFall, boostedSpeedKmh),
-            );
+            if (currentSpeedFromGpsKmh <= 0.5 && derivedSpeedKmh > 0.5) {
+              currentSpeedFromGpsKmh = derivedSpeedKmh;
+            }
           }
 
           previousSpeedSampleRef.current = { point, atMs: now };
-          displayedSpeedKmhRef.current = stabilizedSpeedKmh;
+          displayedSpeedKmhRef.current = currentSpeedFromGpsKmh;
 
-          const over = stabilizedSpeedKmh - speedLimitRef.current;
+          const over = currentSpeedFromGpsKmh - speedLimitRef.current;
 
-          setCurrentSpeedKmh(stabilizedSpeedKmh);
-          recordSessionMetrics(stabilizedSpeedKmh, over);
+          setCurrentSpeedKmh(currentSpeedFromGpsKmh);
+          recordSessionMetrics(currentSpeedFromGpsKmh, over);
 
           const distanceSinceLastFetch = lastFetchPointRef.current
             ? distanceMeters(lastFetchPointRef.current, point)
@@ -404,6 +436,37 @@ export function useDriveSession() {
               })
               .finally(() => {
                 isSpeedLimitFetchInFlightRef.current = false;
+              });
+          }
+
+          const shouldRefreshRoadLabel =
+            now - lastRoadLabelFetchAtRef.current >= ROAD_LABEL_REFRESH_MS &&
+            roadLabelRef.current === 'Road not detected';
+
+          if (shouldRefreshRoadLabel) {
+            lastRoadLabelFetchAtRef.current = now;
+
+            void Location.reverseGeocodeAsync(point)
+              .then((results) => {
+                const firstResult = results[0];
+
+                if (!firstResult) {
+                  return;
+                }
+
+                const nextLabel = buildRoadLabel({
+                  roadName: firstResult.street ?? undefined,
+                  street: firstResult.street ?? undefined,
+                  district: firstResult.district ?? undefined,
+                  city: firstResult.city ?? undefined,
+                });
+
+                if (nextLabel !== 'Road not detected') {
+                  setRoadLabel(nextLabel);
+                }
+              })
+              .catch(() => {
+                // Keep the current label if reverse geocoding fails.
               });
           }
 
