@@ -8,6 +8,10 @@ Current MVP scope:
 - Voice alert when speed is above threshold for a sustained window
 - Alert cooldown to reduce repeated warnings
 
+## Version 2 Roadmap
+
+See [docs/roadmap-v2.md](docs/roadmap-v2.md) for the next step-by-step plan.
+
 ## Tech Stack
 
 - React Native (Expo, TypeScript)
