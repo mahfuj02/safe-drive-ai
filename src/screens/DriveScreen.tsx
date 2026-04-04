@@ -31,6 +31,10 @@ export function DriveScreen() {
     startTracking,
     startDemoMode,
     setDemoSpeedKmh,
+    setDemoSchoolZoneActive,
+    setDemoSchoolZoneInactive,
+    setDemoUpcomingLimit,
+    clearDemoContext,
     closeTripSummary,
     openAppSettings,
     stopTracking,
@@ -78,6 +82,10 @@ export function DriveScreen() {
             alertThresholdKmh={alertThresholdKmh}
             isDemoMode={isDemoMode}
             onSetDemoSpeed={setDemoSpeedKmh}
+            onSetDemoSchoolZoneActive={setDemoSchoolZoneActive}
+            onSetDemoSchoolZoneInactive={setDemoSchoolZoneInactive}
+            onSetDemoUpcomingLimit={setDemoUpcomingLimit}
+            onClearDemoContext={clearDemoContext}
             onStopDrive={stopTracking}
           />
         )}

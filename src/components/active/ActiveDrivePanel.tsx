@@ -17,6 +17,10 @@ type ActiveDrivePanelProps = {
   alertThresholdKmh: number;
   isDemoMode: boolean;
   onSetDemoSpeed: (speedKmh: number) => void;
+  onSetDemoSchoolZoneActive: () => void;
+  onSetDemoSchoolZoneInactive: () => void;
+  onSetDemoUpcomingLimit: () => void;
+  onClearDemoContext: () => void;
   onStopDrive: () => void;
 };
 
@@ -32,6 +36,10 @@ export function ActiveDrivePanel({
   alertThresholdKmh,
   isDemoMode,
   onSetDemoSpeed,
+  onSetDemoSchoolZoneActive,
+  onSetDemoSchoolZoneInactive,
+  onSetDemoUpcomingLimit,
+  onClearDemoContext,
   onStopDrive,
 }: ActiveDrivePanelProps) {
   return (
@@ -65,6 +73,10 @@ export function ActiveDrivePanel({
           onSetSafe={() => onSetDemoSpeed(speedLimitKmh - 2)}
           onSetWarning={() => onSetDemoSpeed(speedLimitKmh + Math.max(1, alertThresholdKmh - 1))}
           onSetAlert={() => onSetDemoSpeed(speedLimitKmh + alertThresholdKmh + 4)}
+          onSetSchoolZoneActive={onSetDemoSchoolZoneActive}
+          onSetSchoolZoneInactive={onSetDemoSchoolZoneInactive}
+          onSetUpcomingLimit={onSetDemoUpcomingLimit}
+          onClearContext={onClearDemoContext}
         />
       )}
 

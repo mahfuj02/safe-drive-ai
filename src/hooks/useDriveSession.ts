@@ -24,6 +24,7 @@ const ROAD_LABEL_REFRESH_MS = 15000;
 const LIVE_LIMIT_STALE_MS = 35000;
 const UPCOMING_LIMIT_PREWARN_DISTANCE_METERS = 220;
 const UPCOMING_LIMIT_WARN_COOLDOWN_MS = 30000;
+const SCHOOL_ZONE_ANNOUNCE_COOLDOWN_MS = 20000;
 const ALERT_VIBRATION_PATTERN_MS: number[] = [0, 450, 140, 450];
 
 type LocationPoint = {
@@ -138,6 +139,8 @@ export function useDriveSession() {
   const lastRoadLabelFetchAtRef = useRef(0);
   const lastUpcomingWarnAtRef = useRef(0);
   const lastUpcomingWarnKeyRef = useRef('');
+  const lastSchoolZoneAnnounceAtRef = useRef(0);
+  const lastSchoolZoneStateRef = useRef<'active' | 'inactive' | 'none'>('none');
 
   useEffect(() => {
     speedLimitRef.current = speedLimitKmh;
@@ -357,6 +360,64 @@ export function useDriveSession() {
     );
   };
 
+  const maybeSpeakSchoolZoneContext = async (
+    isSchoolZoneActive: boolean,
+    schoolZoneLimitKmh: number | undefined,
+    currentSpeedKmh: number,
+  ) => {
+    if (isDemoMode || speedLimitSourceRef.current !== 'live') {
+      return;
+    }
+
+    const nextState: 'active' | 'inactive' | 'none' = schoolZoneLimitKmh
+      ? isSchoolZoneActive
+        ? 'active'
+        : 'inactive'
+      : 'none';
+
+    const previousState = lastSchoolZoneStateRef.current;
+
+    if (nextState === previousState) {
+      return;
+    }
+
+    const now = Date.now();
+    if (now - lastSchoolZoneAnnounceAtRef.current < SCHOOL_ZONE_ANNOUNCE_COOLDOWN_MS) {
+      lastSchoolZoneStateRef.current = nextState;
+      return;
+    }
+
+    lastSchoolZoneStateRef.current = nextState;
+    lastSchoolZoneAnnounceAtRef.current = now;
+
+    if (nextState === 'active' && schoolZoneLimitKmh) {
+      if (currentSpeedKmh > schoolZoneLimitKmh + 1) {
+        await Speech.speak(
+          `School zone active. Limit ${schoolZoneLimitKmh}. Reduce speed now.`,
+          {
+            rate: 0.95,
+            pitch: 1,
+            volume: 1,
+          },
+        );
+      } else {
+        await Speech.speak(`School zone active. Limit ${schoolZoneLimitKmh}.`, {
+          rate: 0.95,
+          pitch: 1,
+          volume: 1,
+        });
+      }
+    }
+
+    if (nextState === 'inactive') {
+      await Speech.speak('School zone rule detected, but inactive now.', {
+        rate: 0.97,
+        pitch: 1,
+        volume: 1,
+      });
+    }
+  };
+
   const startTracking = async () => {
     setIsStarting(true);
 
@@ -386,6 +447,8 @@ export function useDriveSession() {
       displayedSpeedKmhRef.current = 0;
       lastUpcomingWarnAtRef.current = 0;
       lastUpcomingWarnKeyRef.current = '';
+      lastSchoolZoneAnnounceAtRef.current = 0;
+      lastSchoolZoneStateRef.current = 'none';
 
       locationSubRef.current = await Location.watchPositionAsync(
         {
@@ -458,6 +521,12 @@ export function useDriveSession() {
                   } else {
                     setLimitContextLabel(null);
                   }
+
+                  void maybeSpeakSchoolZoneContext(
+                    !!result.isSchoolZoneActive,
+                    result.schoolZoneLimitKmh,
+                    currentSpeedFromGpsKmh,
+                  );
 
                   if (result.nextLowerLimitKmh && result.nextLowerLimitDistanceMeters) {
                     const nextDistance = Math.round(result.nextLowerLimitDistanceMeters);
@@ -604,6 +673,49 @@ export function useDriveSession() {
     }
   };
 
+  const setDemoSchoolZoneActive = () => {
+    setSpeedLimitSource('live');
+    setRoadLabel('Demo school zone');
+    setLimitContextLabel('School zone active: 30 km/h');
+    setUpcomingLimitPreview(null);
+    setStatusText('Demo: school-zone active context shown.');
+    void Speech.speak('School zone active. Limit 30. Reduce speed if needed.', {
+      rate: 0.95,
+      pitch: 1,
+      volume: 1,
+    });
+  };
+
+  const setDemoSchoolZoneInactive = () => {
+    setSpeedLimitSource('live');
+    setRoadLabel('Demo school zone corridor');
+    setLimitContextLabel('School zone rule detected (30 km/h) but inactive now');
+    setUpcomingLimitPreview(null);
+    setStatusText('Demo: school-zone inactive context shown.');
+    void Speech.speak('School zone rule detected, but inactive now.', {
+      rate: 0.97,
+      pitch: 1,
+      volume: 1,
+    });
+  };
+
+  const setDemoUpcomingLimit = () => {
+    const nextLimit = Math.max(20, Math.round(speedLimitRef.current - 20));
+    setSpeedLimitSource('live');
+    setRoadLabel('Demo city corridor');
+    setLimitContextLabel(null);
+    setUpcomingLimitPreview(`Ahead: ${nextLimit} km/h in 180 m`);
+    setStatusText('Demo: upcoming lower speed-limit preview shown.');
+  };
+
+  const clearDemoContext = () => {
+    setSpeedLimitSource('manual');
+    setRoadLabel('Demo route');
+    setLimitContextLabel(null);
+    setUpcomingLimitPreview(null);
+    setStatusText('Demo context cleared.');
+  };
+
   const closeTripSummary = () => {
     setLatestTripSummary(null);
   };
@@ -656,6 +768,10 @@ export function useDriveSession() {
     startTracking,
     startDemoMode,
     setDemoSpeedKmh,
+    setDemoSchoolZoneActive,
+    setDemoSchoolZoneInactive,
+    setDemoUpcomingLimit,
+    clearDemoContext,
     closeTripSummary,
     openAppSettings,
     stopTracking,
