@@ -14,6 +14,8 @@ type OverpassWay = {
     maxspeed?: string;
     'maxspeed:forward'?: string;
     'maxspeed:backward'?: string;
+    'maxspeed:school'?: string;
+    'maxspeed:conditional'?: string;
     name?: string;
     highway?: string;
   };
@@ -30,6 +32,8 @@ export type LiveSpeedLimitResult = {
   roadClass?: string;
   nextLowerLimitKmh?: number;
   nextLowerLimitDistanceMeters?: number;
+  isSchoolZoneActive?: boolean;
+  schoolZoneLimitKmh?: number;
 };
 
 const OVERPASS_ENDPOINT = 'https://overpass-api.de/api/interpreter';
@@ -76,13 +80,159 @@ function parseMaxSpeedToKmh(raw: string | undefined): number | null {
   return Math.round(numeric);
 }
 
-function parseWaySpeedLimitKmh(way: OverpassWay): number | null {
+type ConditionalLimit = {
+  limitKmh: number;
+  conditionText: string;
+};
+
+type WayLimitContext = {
+  speedLimitKmh: number | null;
+  isSchoolZoneActive: boolean;
+  schoolZoneLimitKmh: number | null;
+};
+
+function parseConditionalLimits(raw: string | undefined): ConditionalLimit[] {
+  if (!raw) {
+    return [];
+  }
+
+  const matches = raw.matchAll(/([^@;]+?)\s*@\s*\(([^)]+)\)/g);
+  const parsed: ConditionalLimit[] = [];
+
+  for (const match of matches) {
+    const limit = parseMaxSpeedToKmh(match[1]?.trim());
+    const conditionText = match[2]?.trim();
+
+    if (!limit || !conditionText) {
+      continue;
+    }
+
+    parsed.push({ limitKmh: limit, conditionText });
+  }
+
+  return parsed;
+}
+
+function timeToMinutes(value: string): number | null {
+  const parts = value.split(':');
+
+  if (parts.length !== 2) {
+    return null;
+  }
+
+  const hours = Number.parseInt(parts[0], 10);
+  const minutes = Number.parseInt(parts[1], 10);
+
+  if (!Number.isFinite(hours) || !Number.isFinite(minutes)) {
+    return null;
+  }
+
+  return hours * 60 + minutes;
+}
+
+function isNowWithinCondition(conditionText: string, now: Date): boolean {
+  const dayMap: Record<string, number> = {
+    su: 0,
+    mo: 1,
+    tu: 2,
+    we: 3,
+    th: 4,
+    fr: 5,
+    sa: 6,
+  };
+
+  const normalized = conditionText.toLowerCase();
+  const currentDay = now.getDay();
+  const currentMinutes = now.getHours() * 60 + now.getMinutes();
+
+  const dayMatches = [...normalized.matchAll(/\b(mo|tu|we|th|fr|sa|su)(?:\s*-\s*(mo|tu|we|th|fr|sa|su))?\b/g)];
+
+  let dayMatchesNow = true;
+  if (dayMatches.length > 0) {
+    dayMatchesNow = false;
+
+    for (const match of dayMatches) {
+      const startDay = dayMap[match[1]];
+      const endToken = match[2] ?? match[1];
+      const endDay = dayMap[endToken];
+
+      if (startDay === undefined || endDay === undefined) {
+        continue;
+      }
+
+      if (startDay <= endDay) {
+        if (currentDay >= startDay && currentDay <= endDay) {
+          dayMatchesNow = true;
+          break;
+        }
+      } else if (currentDay >= startDay || currentDay <= endDay) {
+        dayMatchesNow = true;
+        break;
+      }
+    }
+  }
+
+  const timeMatch = normalized.match(/(\d{1,2}:\d{2})\s*-\s*(\d{1,2}:\d{2})/);
+  let timeMatchesNow = true;
+
+  if (timeMatch) {
+    const startMinutes = timeToMinutes(timeMatch[1]);
+    const endMinutes = timeToMinutes(timeMatch[2]);
+
+    if (startMinutes !== null && endMinutes !== null) {
+      if (startMinutes <= endMinutes) {
+        timeMatchesNow = currentMinutes >= startMinutes && currentMinutes <= endMinutes;
+      } else {
+        timeMatchesNow = currentMinutes >= startMinutes || currentMinutes <= endMinutes;
+      }
+    }
+  }
+
+  return dayMatchesNow && timeMatchesNow;
+}
+
+function resolveWayLimitContext(way: OverpassWay, now: Date): WayLimitContext {
+  const schoolZoneLimit = parseMaxSpeedToKmh(way.tags?.['maxspeed:school']);
+
   const explicitLimit =
     parseMaxSpeedToKmh(way.tags?.maxspeed) ??
     parseMaxSpeedToKmh(way.tags?.['maxspeed:forward']) ??
     parseMaxSpeedToKmh(way.tags?.['maxspeed:backward']);
 
-  return explicitLimit ?? defaultUrbanLimitForRoadClass(way.tags?.highway);
+  const defaultLimit = defaultUrbanLimitForRoadClass(way.tags?.highway);
+  let resolvedLimit = explicitLimit ?? defaultLimit;
+  let isSchoolZoneActive = false;
+
+  for (const conditional of parseConditionalLimits(way.tags?.['maxspeed:conditional'])) {
+    if (!isNowWithinCondition(conditional.conditionText, now)) {
+      continue;
+    }
+
+    resolvedLimit = conditional.limitKmh;
+
+    if (
+      conditional.conditionText.toLowerCase().includes('school') ||
+      conditional.limitKmh === schoolZoneLimit
+    ) {
+      isSchoolZoneActive = true;
+    }
+
+    break;
+  }
+
+  if (!isSchoolZoneActive && schoolZoneLimit !== null && resolvedLimit === schoolZoneLimit) {
+    isSchoolZoneActive = true;
+  }
+
+  return {
+    speedLimitKmh: resolvedLimit,
+    isSchoolZoneActive,
+    schoolZoneLimitKmh: schoolZoneLimit,
+  };
+}
+
+function parseWaySpeedLimitKmh(way: OverpassWay): number | null {
+  return resolveWayLimitContext(way, new Date()).speedLimitKmh;
 }
 
 function toDegrees(rad: number): number {
@@ -283,6 +433,7 @@ export async function resolveLiveSpeedLimitKmh(
   location: Coordinates,
   headingDegrees?: number,
 ): Promise<LiveSpeedLimitResult> {
+  const now = new Date();
   const query = `
 [out:json][timeout:8];
 (
@@ -313,7 +464,8 @@ out geom 50;
     return { speedLimitKmh: null };
   }
 
-  const parsedLimit = parseWaySpeedLimitKmh(nearest.way);
+  const limitContext = resolveWayLimitContext(nearest.way, now);
+  const parsedLimit = limitContext.speedLimitKmh;
 
   if (!parsedLimit) {
     return {
@@ -331,5 +483,7 @@ out geom 50;
     roadClass: nearest.way.tags?.highway,
     nextLowerLimitKmh: nextLowerLimit?.nextLowerLimitKmh,
     nextLowerLimitDistanceMeters: nextLowerLimit?.nextLowerLimitDistanceMeters,
+    isSchoolZoneActive: limitContext.isSchoolZoneActive,
+    schoolZoneLimitKmh: limitContext.schoolZoneLimitKmh ?? undefined,
   };
 }

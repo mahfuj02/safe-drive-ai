@@ -11,6 +11,7 @@ type ActiveDrivePanelProps = {
   speedLimitKmh: number;
   speedLimitSource: SpeedLimitSource;
   roadLabel: string;
+  limitContextLabel: string | null;
   upcomingLimitPreview: string | null;
   overByKmh: number;
   alertThresholdKmh: number;
@@ -25,6 +26,7 @@ export function ActiveDrivePanel({
   speedLimitKmh,
   speedLimitSource,
   roadLabel,
+  limitContextLabel,
   upcomingLimitPreview,
   overByKmh,
   alertThresholdKmh,
@@ -53,6 +55,8 @@ export function ActiveDrivePanel({
       <Text style={styles.overText}>
         Over: {speedLimitSource === 'live' ? `${Math.round(overByKmh)} km/h` : 'Not available'}
       </Text>
+
+      {!!limitContextLabel && <Text style={styles.contextText}>{limitContextLabel}</Text>}
 
       {!!upcomingLimitPreview && <Text style={styles.upcomingText}>{upcomingLimitPreview}</Text>}
 
@@ -104,9 +108,15 @@ const styles = StyleSheet.create({
   overText: {
     color: colors.text.primary,
     marginTop: spacing.lg,
-    marginBottom: spacing.md,
+    marginBottom: spacing.sm,
     fontSize: 22,
     fontWeight: '800',
+  },
+  contextText: {
+    color: colors.text.secondary,
+    marginBottom: spacing.sm,
+    fontSize: 14,
+    fontWeight: '700',
   },
   upcomingText: {
     color: colors.state.warningText,

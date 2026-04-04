@@ -109,6 +109,7 @@ export function useDriveSession() {
   const [permissionState, setPermissionState] = useState<PermissionState>('unknown');
   const [speedLimitSource, setSpeedLimitSource] = useState<SpeedLimitSource>('manual');
   const [roadLabel, setRoadLabel] = useState('Road not detected');
+  const [limitContextLabel, setLimitContextLabel] = useState<string | null>(null);
   const [upcomingLimitPreview, setUpcomingLimitPreview] = useState<string | null>(null);
   const [alertThresholdKmh, setAlertThresholdKmh] = useState(DEFAULT_ALERT_THRESHOLD_KMH);
   const [latestTripSummary, setLatestTripSummary] = useState<TripSummary | null>(null);
@@ -264,6 +265,7 @@ export function useDriveSession() {
       setLocationStatus('active');
     }
     setSpeedLimitSource('manual');
+    setLimitContextLabel(null);
     setUpcomingLimitPreview(null);
     if (!wasTracking || wasDemoMode) {
       setRoadLabel('Road not detected');
@@ -370,6 +372,7 @@ export function useDriveSession() {
       setLocationStatus('active');
       setSpeedLimitSource('unknown');
       setRoadLabel('Searching road...');
+      setLimitContextLabel(null);
       setUpcomingLimitPreview(null);
       setIsTracking(true);
       setLatestTripSummary(null);
@@ -448,6 +451,14 @@ export function useDriveSession() {
                   const nextRoadLabel = result.roadName ?? result.roadClass ?? 'Unnamed road';
                   setRoadLabel(nextRoadLabel);
 
+                  if (result.isSchoolZoneActive) {
+                    setLimitContextLabel(`School zone active${result.schoolZoneLimitKmh ? `: ${result.schoolZoneLimitKmh} km/h` : ''}`);
+                  } else if (result.schoolZoneLimitKmh) {
+                    setLimitContextLabel(`School zone rule detected (${result.schoolZoneLimitKmh} km/h) but inactive now`);
+                  } else {
+                    setLimitContextLabel(null);
+                  }
+
                   if (result.nextLowerLimitKmh && result.nextLowerLimitDistanceMeters) {
                     const nextDistance = Math.round(result.nextLowerLimitDistanceMeters);
                     setUpcomingLimitPreview(
@@ -481,6 +492,7 @@ export function useDriveSession() {
                     setRoadLabel(lastLiveRoadLabelRef.current);
                   } else {
                     setSpeedLimitSource('unknown');
+                    setLimitContextLabel(null);
                     setUpcomingLimitPreview(null);
                     setRoadLabel(result.roadName ?? result.roadClass ?? 'Road not detected');
                   }
@@ -502,6 +514,7 @@ export function useDriveSession() {
                   setRoadLabel(lastLiveRoadLabelRef.current);
                 } else {
                   setSpeedLimitSource('unknown');
+                  setLimitContextLabel(null);
                   setUpcomingLimitPreview(null);
                   setRoadLabel('Road lookup unavailable');
                 }
@@ -564,6 +577,7 @@ export function useDriveSession() {
     setIsDemoMode(true);
     setSpeedLimitSource('manual');
     setRoadLabel('Demo route');
+    setLimitContextLabel(null);
     setUpcomingLimitPreview(null);
     setLatestTripSummary(null);
     resetSessionMetrics();
@@ -624,6 +638,7 @@ export function useDriveSession() {
     setSpeedLimitKmh,
     speedLimitSource,
     roadLabel,
+    limitContextLabel,
     upcomingLimitPreview,
     currentSpeedKmh,
     isTracking,
