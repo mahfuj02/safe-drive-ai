@@ -28,6 +28,8 @@ export type LiveSpeedLimitResult = {
   speedLimitKmh: number | null;
   roadName?: string;
   roadClass?: string;
+  nextLowerLimitKmh?: number;
+  nextLowerLimitDistanceMeters?: number;
 };
 
 const OVERPASS_ENDPOINT = 'https://overpass-api.de/api/interpreter';
@@ -72,6 +74,115 @@ function parseMaxSpeedToKmh(raw: string | undefined): number | null {
   }
 
   return Math.round(numeric);
+}
+
+function parseWaySpeedLimitKmh(way: OverpassWay): number | null {
+  const explicitLimit =
+    parseMaxSpeedToKmh(way.tags?.maxspeed) ??
+    parseMaxSpeedToKmh(way.tags?.['maxspeed:forward']) ??
+    parseMaxSpeedToKmh(way.tags?.['maxspeed:backward']);
+
+  return explicitLimit ?? defaultUrbanLimitForRoadClass(way.tags?.highway);
+}
+
+function toDegrees(rad: number): number {
+  return (rad * 180) / Math.PI;
+}
+
+function bearingDegrees(from: Coordinates, to: Coordinates): number {
+  const lat1 = toRadians(from.latitude);
+  const lat2 = toRadians(to.latitude);
+  const dLon = toRadians(to.longitude - from.longitude);
+
+  const y = Math.sin(dLon) * Math.cos(lat2);
+  const x =
+    Math.cos(lat1) * Math.sin(lat2) -
+    Math.sin(lat1) * Math.cos(lat2) * Math.cos(dLon);
+
+  return (toDegrees(Math.atan2(y, x)) + 360) % 360;
+}
+
+function headingDeltaDegrees(a: number, b: number): number {
+  const diff = Math.abs(a - b) % 360;
+  return diff > 180 ? 360 - diff : diff;
+}
+
+function closestNodeOnWay(
+  way: OverpassWay,
+  location: Coordinates,
+): { node: OverpassNode; distanceMeters: number } | null {
+  if (!way.geometry || way.geometry.length === 0) {
+    return null;
+  }
+
+  let winner: { node: OverpassNode; distanceMeters: number } | null = null;
+
+  for (const node of way.geometry) {
+    const d = distanceMeters(location, { latitude: node.lat, longitude: node.lon });
+
+    if (!winner || d < winner.distanceMeters) {
+      winner = { node, distanceMeters: d };
+    }
+  }
+
+  return winner;
+}
+
+function findUpcomingLowerLimit(
+  ways: OverpassWay[],
+  location: Coordinates,
+  headingDegrees: number | undefined,
+  currentLimitKmh: number,
+): { nextLowerLimitKmh: number; nextLowerLimitDistanceMeters: number } | null {
+  if (!Number.isFinite(headingDegrees)) {
+    return null;
+  }
+
+  let winner: { nextLowerLimitKmh: number; nextLowerLimitDistanceMeters: number; score: number } | null =
+    null;
+
+  for (const way of ways) {
+    const wayLimit = parseWaySpeedLimitKmh(way);
+
+    if (!wayLimit || wayLimit >= currentLimitKmh) {
+      continue;
+    }
+
+    const closest = closestNodeOnWay(way, location);
+
+    if (!closest || closest.distanceMeters > 350) {
+      continue;
+    }
+
+    const candidateBearing = bearingDegrees(location, {
+      latitude: closest.node.lat,
+      longitude: closest.node.lon,
+    });
+    const headingOffset = headingDeltaDegrees(headingDegrees as number, candidateBearing);
+
+    if (headingOffset > 75) {
+      continue;
+    }
+
+    const score = closest.distanceMeters + headingOffset * 2;
+
+    if (!winner || score < winner.score) {
+      winner = {
+        nextLowerLimitKmh: wayLimit,
+        nextLowerLimitDistanceMeters: Math.round(closest.distanceMeters),
+        score,
+      };
+    }
+  }
+
+  if (!winner) {
+    return null;
+  }
+
+  return {
+    nextLowerLimitKmh: winner.nextLowerLimitKmh,
+    nextLowerLimitDistanceMeters: winner.nextLowerLimitDistanceMeters,
+  };
 }
 
 function defaultUrbanLimitForRoadClass(roadClass: string | undefined): number | null {
@@ -170,6 +281,7 @@ function nearestWay(
 
 export async function resolveLiveSpeedLimitKmh(
   location: Coordinates,
+  headingDegrees?: number,
 ): Promise<LiveSpeedLimitResult> {
   const query = `
 [out:json][timeout:8];
@@ -201,12 +313,7 @@ out geom 50;
     return { speedLimitKmh: null };
   }
 
-  const explicitLimit =
-    parseMaxSpeedToKmh(nearest.way.tags?.maxspeed) ??
-    parseMaxSpeedToKmh(nearest.way.tags?.['maxspeed:forward']) ??
-    parseMaxSpeedToKmh(nearest.way.tags?.['maxspeed:backward']);
-
-  const parsedLimit = explicitLimit ?? defaultUrbanLimitForRoadClass(nearest.way.tags?.highway);
+  const parsedLimit = parseWaySpeedLimitKmh(nearest.way);
 
   if (!parsedLimit) {
     return {
@@ -216,9 +323,13 @@ out geom 50;
     };
   }
 
+  const nextLowerLimit = findUpcomingLowerLimit(ways, location, headingDegrees, parsedLimit);
+
   return {
     speedLimitKmh: parsedLimit,
     roadName: nearest.way.tags?.name,
     roadClass: nearest.way.tags?.highway,
+    nextLowerLimitKmh: nextLowerLimit?.nextLowerLimitKmh,
+    nextLowerLimitDistanceMeters: nextLowerLimit?.nextLowerLimitDistanceMeters,
   };
 }
