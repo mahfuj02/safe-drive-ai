@@ -53,6 +53,18 @@ You can test with a real iPhone using Expo Go:
 4. Start emulator
 5. Run `npm run android`
 
+## Zero-Cost Android APK Build
+
+Use this to create an installable APK you can upload to Google Drive or GitHub:
+1. Install EAS CLI once: `npm install -g eas-cli`
+2. Log in: `eas login`
+3. Set up build config: `npm run build:configure`
+4. Build APK: `npm run build:android:preview`
+5. Download the APK from the EAS build page
+6. Upload the APK to Google Drive or attach it to a GitHub release
+
+If you later want Play Store builds, use `npm run build:android:production` for an AAB.
+
 ## Current Alert Rules
 
 - Threshold: +8 km/h above speed limit

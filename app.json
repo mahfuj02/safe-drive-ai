@@ -20,6 +20,8 @@
       }
     },
     "android": {
+      "package": "com.mahfuj02.safedriveai",
+      "versionCode": 1,
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"
