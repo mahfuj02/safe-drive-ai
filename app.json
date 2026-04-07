@@ -17,6 +17,7 @@
       "buildNumber": "1",
       "supportsTablet": true,
       "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false,
         "NSLocationWhenInUseUsageDescription": "SAFE DRIVE AI uses your location and speed to warn you when you drive over the speed limit.",
         "NSLocationAlwaysAndWhenInUseUsageDescription": "SAFE DRIVE AI uses location while driving to provide live speed alerts."
       }
